@@ -40,4 +40,4 @@ Print photos are sent as data-URL text fields in one request (JPEG 95%, cropped 
 Full-quality originals are sent afterwards, one file per request (`POST orders/{id}/originals`, secret per-order key valid 1 day, one file per photo slot), up to `min(30 MB, upload_max_filesize)`; stored as `original-NNN.ext` with one `_tt_original` meta row each. Raise `upload_max_filesize` to 30M so big phone photos aren't skipped.
 
 ## Deploying
-Pushing to `main` runs `.github/workflows/deploy.yml`: PHP/JS syntax check, then rsync over SSH to Hostinger (`HOSTINGER_*` repo secrets; the target path must end in `/wp-content/themes/tales2tiles`). Notes files and git files are not uploaded. Bump `Version:` in `style.css` when JS/CSS change so browsers reload them.
+Pushing to `main` runs `.github/workflows/deploy.yml`: PHP/JS syntax check, then FTPS upload of changed files to Hostinger (SamKirkland/FTP-Deploy-Action; `HOSTINGER_FTP_*` repo secrets; the folder must end in `/wp-content/themes/tales2tiles/`). Notes files and git files are not uploaded. Bump `Version:` in `style.css` when JS/CSS change so browsers reload them.
