@@ -1,0 +1,40 @@
+# Tales to Tiles — classic WordPress theme
+
+Notes for AI agents and humans editing this theme.
+
+## Where things live
+- `inc/config.php` — shop/group/swatch **defaults**. `tales2tiles_config()` = defaults + Order page edits + published products; it's the single source for PHP pages, the JS app (`window.TT`) and server-side price checks.
+- `inc/products.php` — **Products** menu (post type `tt_product`, meta `_tt_product`): add/remove/reorder (Attributes → Order)/draft products. Fields: description, group, photo, price or price breaks, min/max, colors, photos per item, print shape and size. Post slug = product key (URLs, orders); don't change it. `tales2tiles_products()` builds the catalog; `tales2tiles_default_products()` seeds the original 7 once (bundled photos imported to the Media Library; keepsakes keep their SVG art via `_tt_product_art`).
+- `inc/orders.php` — `tt_order` post type + REST API (`/wp-json/tales2tiles/v1/`). Order data in post meta `_tt_order`; images in `uploads/tt-orders/<id>-<random>/`.
+- `inc/drive.php` — Google Drive storage (Tile orders → Google Drive; setup steps are on that page). Owner's own OAuth client, scope `drive.file`, option `tales2tiles_drive`. Orders save locally first; WP-Cron hook `tales2tiles_drive_upload` copies them (20 files/run, resumable, progress in post meta `_tt_drive`, never in `_tt_order`). With "delete website copies" on, the dashboard gets owner-only proxy URLs `orders/{id}/files/{file}?_wpnonce=…` via the `tales2tiles_order_data` filter. Google requires https, so the connect flow can't run on `.local`.
+- `inc/emails.php` — on `tales2tiles_order_created`: customer confirmation (if they gave an email) and new-order email to Pages → Order → "Send new-order emails to" (`notify_email`, default admin email). HTML via `wp_mail()`; locally they land in Local's Mailpit.
+- `inc/template-tags.php` — image/page URL helpers, inline SVG icons, home product card.
+- `inc/fields.php` — small custom-fields engine (classic editor; block editor disabled site-wide). One meta box per page, registered in `tales2tiles_field_boxes()`; field = `array( type, label, default, options )`, types text/textarea/html/url/email/number/int/select/checkbox/image/list (repeatable rows). Boxes attach to one page or to every post of a post type. Read with `tales2tiles_field( $box, $key )`. Admin JS: `assets/js/admin-fields.js`.
+- `inc/home-fields.php` — Pages → Home ("Home page content", meta `_tt_home`): hero (`img_hero` overrides `tales2tiles_img( 'hero' )`), section text, repeatable FAQs. Templates use `tales2tiles_home( 'key' )`.
+- `inc/order-fields.php` — Pages → Order ("Shop and payment", meta `_tt_order_page`): shipping fee, GCash/BPI, contact/social links, product group titles. `tales2tiles_apply_order_fields()` merges them into the config.
+- `front-page.php` — home (hero, `#products`, `#how`, `#faq`, CTA). `header.php` / `footer.php` (`#contact`).
+- `page-order.php`, `page-cart.php`, `page-track.php`, `page-shop-orders.php` — empty `<main id="app">` shells rendered by `assets/js/app.js` based on `TT.view`. Pages are auto-created (slugs `home` = static front page, `order`, `cart`, `track`, `shop-orders`; the last is private).
+- `assets/js/app.js` — vanilla JS, no build step:
+  - Order flow copied from the old mgnts.to store: `/order/` product cards (`renderShop`) with a "Set of N" dropdown (`variants()`) and "Upload pictures" (opens the picker straight away) → product preview (`stepPreview`: magnet mockups, remove / replace / edit / text per photo, "Selected n/N") → "Add to cart" → slide-in cart (`openDrawer`, also opened by the header cart icon) → Checkout (`/cart/#checkout`, starts at Details). `?product=key` = custom amount (quantity step first); `?edit=itemId` reopens the preview. The editor (`stepAdjust`) opens in a pop-up (`openEditor`).
+  - Uploads go through the "Upload images" modal (`openUploader`): drop zone + "Upload From PC", Camera (`capture`), Google Drive / Facebook (placeholders that show "coming soon"). Photos keep their original size (`w`, `h`) for the low-resolution warning (`photoDPI()`, below `LOW_DPI` = 150 dpi). The confirmation screen (`renderDone`) shows the order summary.
+  - Items have `copies`: the same set printed again. Pieces = qty × copies (prices, minimums, print layout repeats the set); photos = per × qty. Home "Order this" links go to `/order/#p-{key}`. The expand icon on a card opens the product panel (`openProductPanel`: big photo, name, price, size, variant/colour tabs synced with the card, Upload pictures).
+  - Cart lives in the browser's IndexedDB (`tt-cart`, store `items`, `cartStore`), photos stored as the original `File`s with crop data; header badge count in localStorage `tt-cart-count`.
+  - Photo editor (`stepAdjust`, tabs Crop / Filters / Adjust / Text). All edits live on `photo.crop` and are drawn by `drawCrop()`, which makes previews, cart thumbnails and the 300 dpi print files, so prints match the preview: pan/zoom, 90° rotate, straighten ±15°, flip H/V, "fit whole photo" on a background colour, filter presets (`LOOKS`), brightness/contrast/saturation (canvas `filter`; hidden where unsupported), warmth (soft-light tint), text layers (`FONTS`, drawn by `drawTexts`; editor fonts are enqueued only on order/cart pages and `loadTextFonts()` runs before printing).
+  - `/cart/`: cart + checkout (`renderCheckout`: cart → details → payment → receipt → review), discount code box (`COUPON`, localStorage `tt-coupon`). Print photos are cropped from the full-resolution files at submit.
+  - Tracking, owner dashboard (status changes, per-item A4 print layout).
+- `style.css` — theme header + all CSS (tokens on `:root`, dark mode supported).
+
+## Rules
+- Server never trusts browser prices: totals are recomputed from `tales2tiles_config()` in `tales2tiles_rest_create_order()`.
+- Orders hold `items[]` (`product, name, color, qty, unit, subtotal, photoFrom, photoCount, print`). Order-level `photos` stays one flat list (photo-001…, originals index, Drive) and each item points at its slice. Price breaks and product minimums use the product's total pieces across the cart (same rule in app.js `unitFor`/`cartProblems`); `max` is per item. Limits: `TALES2TILES_MAX_ITEMS` (30), `TALES2TILES_MAX_PHOTOS` (200). `tales2tiles_order_data()` turns pre-cart orders into one item.
+- Owner endpoints require `manage_options`; public `track/{id}` returns status only, no customer data.
+- Discount codes: Pages → Order → "Discount codes" (`coupons` list: code, % off, ₱ off, minimum). Server-only (`tales2tiles_coupon()`, never in `window.TT`); `GET coupon/{code}` is throttled to 20 per IP per hour; the order recomputes the discount (`tales2tiles_coupon_discount()`, same formula as app.js `couponDiscount()`).
+- Products, orders and the Pages → Order box (payment accounts) are `manage_options` only (CPT `capabilities`, box `cap`). Editors may edit the Home box only. Keep it that way.
+- Public `POST orders` is throttled to 10 per IP per hour (transient `tt_orders_<md5 ip>`). Order numbers come from `tales2tiles_next_order_number()` (atomic SQL), never `get_option() + 1`.
+- Anything admin-entered that app.js puts into `innerHTML` goes through `esc()`.
+- Product keys (post slugs `sq`, `rect`, …) are stored on orders — don't rename them. Orders also save `print` (mm/shape/sides) so print layouts survive product edits or deletion.
+- WordPress Coding Standards, `tales2tiles_` prefix, text domain `tales2tiles`, escape all output.
+
+## Server requirement
+Print photos are sent as data-URL text fields in one request (JPEG 95%, cropped from the customer's full-resolution file; ~250–450 KB each, up to 100), so PHP `post_max_size` should be ≥ 128M. `max_file_uploads` doesn't matter (only the receipt is a file).
+Full-quality originals are sent afterwards, one file per request (`POST orders/{id}/originals`, secret per-order key valid 1 day, one file per photo slot), up to `min(30 MB, upload_max_filesize)`; stored as `original-NNN.ext` with one `_tt_original` meta row each. Raise `upload_max_filesize` to 30M so big phone photos aren't skipped.
