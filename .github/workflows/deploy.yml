@@ -27,7 +27,7 @@ jobs:
       DEPLOY_USER: ${{ secrets.HOSTINGER_SSH_USER }}
       DEPLOY_PATH: ${{ secrets.HOSTINGER_THEME_PATH }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check PHP and JavaScript syntax
         run: |
