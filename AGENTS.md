@@ -38,3 +38,6 @@ Notes for AI agents and humans editing this theme.
 ## Server requirement
 Print photos are sent as data-URL text fields in one request (JPEG 95%, cropped from the customer's full-resolution file; ~250–450 KB each, up to 100), so PHP `post_max_size` should be ≥ 128M. `max_file_uploads` doesn't matter (only the receipt is a file).
 Full-quality originals are sent afterwards, one file per request (`POST orders/{id}/originals`, secret per-order key valid 1 day, one file per photo slot), up to `min(30 MB, upload_max_filesize)`; stored as `original-NNN.ext` with one `_tt_original` meta row each. Raise `upload_max_filesize` to 30M so big phone photos aren't skipped.
+
+## Deploying
+Pushing to `main` runs `.github/workflows/deploy.yml`: PHP/JS syntax check, then rsync over SSH to Hostinger (`HOSTINGER_*` repo secrets; the target path must end in `/wp-content/themes/tales2tiles`). Notes files and git files are not uploaded. Bump `Version:` in `style.css` when JS/CSS change so browsers reload them.

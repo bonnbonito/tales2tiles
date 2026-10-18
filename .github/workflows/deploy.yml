@@ -1,0 +1,58 @@
+# Deploy the theme to the live site on Hostinger whenever main changes.
+#
+# Needs these repository secrets (GitHub → Settings → Secrets and variables → Actions):
+#   HOSTINGER_SSH_HOST   e.g. 123.45.67.89   (hPanel → Advanced → SSH Access)
+#   HOSTINGER_SSH_PORT   usually 65002
+#   HOSTINGER_SSH_USER   e.g. u123456789
+#   HOSTINGER_SSH_KEY    private deploy key (its public half is added in hPanel → SSH Access → SSH keys)
+#   HOSTINGER_THEME_PATH e.g. /home/u123456789/domains/example.com/public_html/wp-content/themes/tales2tiles
+# Until they're set, the workflow only runs the syntax checks.
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # "Run workflow" button for a manual redeploy.
+
+concurrency:
+  group: deploy-live
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.HOSTINGER_SSH_HOST }}
+      DEPLOY_PORT: ${{ secrets.HOSTINGER_SSH_PORT }}
+      DEPLOY_USER: ${{ secrets.HOSTINGER_SSH_USER }}
+      DEPLOY_PATH: ${{ secrets.HOSTINGER_THEME_PATH }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check PHP and JavaScript syntax
+        run: |
+          for f in $(git ls-files '*.php'); do php -l "$f" > /dev/null || exit 1; done
+          for f in $(git ls-files 'assets/js/*.js'); do node --check "$f" || exit 1; done
+
+      - name: Deploy secrets not set yet
+        if: env.DEPLOY_HOST == ''
+        run: echo "::notice::Hostinger secrets are not set, so nothing was deployed. See the comment at the top of deploy.yml."
+
+      - name: Upload theme to Hostinger
+        if: env.DEPLOY_HOST != ''
+        env:
+          SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+        run: |
+          # Guard: rsync --delete must only ever touch the theme folder.
+          case "$DEPLOY_PATH" in
+            */wp-content/themes/tales2tiles) ;;
+            *) echo "::error::HOSTINGER_THEME_PATH must end with /wp-content/themes/tales2tiles"; exit 1 ;;
+          esac
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_PORT:-65002}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2> /dev/null
+          rsync -rlz --delete --checksum \
+            --exclude '.git*' --exclude '.github/' --exclude 'AGENTS.md' --exclude 'CLAUDE.md' --exclude '.qa/' --exclude '.DS_Store' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-65002}" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+          echo "Deployed $(git rev-parse --short HEAD) to $DEPLOY_PATH"
