@@ -27,6 +27,8 @@ jobs:
       FTP_DIR: ${{ secrets.HOSTINGER_FTP_DIR }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false # Keep the GitHub token out of .git/config.
 
       - name: Check PHP and JavaScript syntax
         run: |
@@ -60,8 +62,9 @@ jobs:
           lftp --env-password -u "$FTP_USER" "$FTP_SERVER" -e "
             set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate no;
             set net:max-retries 3; set net:timeout 30; set net:reconnect-interval-base 5;
+            rm -r -f '$FTP_DIR.git';
             mirror --reverse --delete --verbose=1 --parallel=2 \
-              --exclude-glob .git* --exclude-glob .github/ --exclude-glob AGENTS.md --exclude-glob CLAUDE.md \
+              --exclude-glob .git/ --exclude-glob .git* --exclude-glob .github/ --exclude-glob AGENTS.md --exclude-glob CLAUDE.md \
               --exclude-glob .qa/ --exclude-glob .DS_Store \
               ./ '$FTP_DIR';
             bye"
