@@ -1,4 +1,4 @@
-# Deploy the theme to the live site on Hostinger (FTP) whenever main changes.
+# Deploy the theme to the live site on Hostinger (FTP over TLS, with lftp) whenever main changes.
 #
 # Needs these repository secrets (GitHub → Settings → Secrets and variables → Actions),
 # copied from hPanel → Files → FTP Accounts:
@@ -46,26 +46,23 @@ jobs:
             *) echo "::error::HOSTINGER_FTP_DIR must end with /wp-content/themes/tales2tiles/"; exit 1 ;;
           esac
 
-      - name: Upload changed files to Hostinger
+      - name: Upload theme to Hostinger
         if: env.FTP_SERVER != ''
-        uses: SamKirkland/FTP-Deploy-Action@110f9186c050f71550953127052e77650219c287 # v4.4.0, pinned: this step receives the FTP password
-        with:
-          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
-          username: ${{ secrets.HOSTINGER_FTP_USER }}
-          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          protocol: ftps # FTP over TLS: the password and files are encrypted.
-          # Hostinger's FTP certificate is for *.hstgr.io, not our server address, so skip the
-          # name check (still encrypted). Use "strict" if HOSTINGER_FTP_SERVER becomes a *.hstgr.io name.
-          security: loose
-          port: 21
-          server-dir: ${{ secrets.HOSTINGER_FTP_DIR }}
-          # Uploads only changed files and removes files deleted from the repo
-          # (it tracks what it uploaded in .ftp-deploy-sync-state.json on the server).
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .github/**
-            AGENTS.md
-            CLAUDE.md
-            .qa/**
-            **/.DS_Store
+        env:
+          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
+          LFTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }} # read by lftp --env-password, never on the command line
+        run: |
+          sudo apt-get update -qq > /dev/null && sudo apt-get install -y -qq lftp > /dev/null
+          # FTP over TLS for both the login and the file transfers. Hostinger's server needs the TLS
+          # session reused on data connections, which lftp does. Its certificate is for *.hstgr.io,
+          # not our server address, so the name check is off (traffic is still encrypted).
+          # mirror -R: upload what changed, delete files removed from the repo (theme folder only).
+          lftp --env-password -u "$FTP_USER" "$FTP_SERVER" -e "
+            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate no;
+            set net:max-retries 3; set net:timeout 30; set net:reconnect-interval-base 5;
+            mirror --reverse --delete --verbose=1 --parallel=2 \
+              --exclude-glob .git* --exclude-glob .github/ --exclude-glob AGENTS.md --exclude-glob CLAUDE.md \
+              --exclude-glob .qa/ --exclude-glob .DS_Store \
+              ./ '$FTP_DIR';
+            bye"
+          echo "Deployed $(git rev-parse --short HEAD) to $FTP_DIR"
