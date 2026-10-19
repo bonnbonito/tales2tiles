@@ -2,7 +2,7 @@
 #
 # Needs these repository secrets (GitHub → Settings → Secrets and variables → Actions),
 # copied from hPanel → Files → FTP Accounts:
-#   HOSTINGER_FTP_SERVER   FTP IP or hostname, e.g. 123.45.67.89 or ftp.example.com
+#   HOSTINGER_FTP_SERVER   FTP server IP, e.g. 45.130.228.127 (the domain's DNS is at Porkbun, so ftp.<domain> doesn't exist)
 #   HOSTINGER_FTP_USER     FTP username, e.g. u123456789 or u123456789.example.com
 #   HOSTINGER_FTP_PASSWORD FTP password
 #   HOSTINGER_FTP_DIR      theme folder as the FTP account sees it, ending in /wp-content/themes/tales2tiles/
@@ -54,6 +54,9 @@ jobs:
           username: ${{ secrets.HOSTINGER_FTP_USER }}
           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
           protocol: ftps # FTP over TLS: the password and files are encrypted.
+          # Hostinger's FTP certificate is for *.hstgr.io, not our server address, so skip the
+          # name check (still encrypted). Use "strict" if HOSTINGER_FTP_SERVER becomes a *.hstgr.io name.
+          security: loose
           port: 21
           server-dir: ${{ secrets.HOSTINGER_FTP_DIR }}
           # Uploads only changed files and removes files deleted from the repo
