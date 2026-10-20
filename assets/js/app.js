@@ -63,39 +63,62 @@ const trackOrder = id => api("track/" + encodeURIComponent(id)).catch(() => null
 $("#menuBtn")?.addEventListener("click", () => { const n = $("#nav"); n.classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", n.classList.contains("open")); });
 $$("#nav a").forEach(a => a.addEventListener("click", () => { $("#nav").classList.remove("open"); $("#menuBtn")?.setAttribute("aria-expanded", "false"); }));
 $$("[data-art]").forEach(el => { el.innerHTML = keepsakeArt(el.dataset.art); });
-// Full-size photo viewer (like heartprinted.com / PhotoSwipe): opens full screen from the photo clicked,
-// with ‹ × › buttons at the bottom, arrow keys and swipe to move between the photos of one gallery
-// (the [data-zoom] photos inside the same .pdp-gallery), and click/tap to zoom 2.5× and look around.
+// Full-size photo viewer (like heartprinted.com / PhotoSwipe): the photo grows out of the one clicked
+// and shrinks back into the current one's thumbnail on close, with the background fading in/out.
+// ‹ × › buttons at the bottom, arrow keys and swipe move between the [data-zoom] photos of one
+// .pdp-gallery; click/tap zooms 2.5× towards the pointer and moving looks around.
 document.addEventListener("click", e => {
   const z = e.target.closest("[data-zoom]"); if (!z) return;
   const group = z.closest(".pdp-gallery"), items = group ? $$("[data-zoom]", group) : [z];
-  openViewer(items.map(el => el.dataset.zoom), items.indexOf(z), z.getBoundingClientRect());
+  openViewer(items, items.indexOf(z));
 });
-function openViewer(urls, index, from) {
-  const many = urls.length > 1;
+const EASE = "cubic-bezier(.4,0,.22,1)";
+function openViewer(items, index) {
+  const many = items.length > 1;
   const dlg = document.createElement("dialog"); dlg.className = "viewer";
-  dlg.innerHTML = `<div class="vw-stage"><div class="lb-frame"><img alt="" draggable="false"></div></div>
-    <div class="vw-bar">${many ? `<button class="vw-btn" data-go="-1" aria-label="Previous">${VW.prev}</button>` : ""}<button class="vw-btn vw-close" aria-label="Close gallery">${VW.close}</button>${many ? `<button class="vw-btn" data-go="1" aria-label="Next">${VW.next}</button>` : ""}</div>
-    ${many ? `<p class="vw-count" aria-live="polite"></p>` : ""}`;
+  dlg.innerHTML = `<div class="vw-bg"></div><div class="vw-stage"><div class="lb-frame"><img alt="" draggable="false"></div></div>
+    <div class="vw-ui"><div class="vw-bar">${many ? `<button class="vw-btn" data-go="-1" aria-label="Previous">${VW.prev}</button>` : ""}<button class="vw-btn vw-close" aria-label="Close gallery">${VW.close}</button>${many ? `<button class="vw-btn" data-go="1" aria-label="Next">${VW.next}</button>` : ""}</div>
+    ${many ? `<p class="vw-count" aria-live="polite"></p>` : ""}</div>`;
   document.body.appendChild(dlg); dlg.showModal();
-  const frame = $(".lb-frame", dlg), img = $("img", frame), reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let zoomed = false;
+  const frame = $(".lb-frame", dlg), img = $("img", frame), fade = $$(".vw-bg, .vw-ui", dlg);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let zoomed = false, closing = false;
   const setZoom = on => { zoomed = on; frame.classList.toggle("zoomed", on); };
+  // Keyframe that puts the frame exactly over the thumbnail: scaled to cover it, clipped to its shape.
+  const atThumb = el => {
+    const f = el.getBoundingClientRect(), t = frame.getBoundingClientRect();
+    if (!t.width || f.bottom < 0 || f.top > innerHeight || !f.width) return null; // thumbnail off screen: just fade
+    const sc = Math.max(f.width / t.width, f.height / t.height);
+    const dx = f.left + f.width / 2 - (t.left + t.width / 2), dy = f.top + f.height / 2 - (t.top + t.height / 2);
+    const ix = (t.width - f.width / sc) / 2, iy = (t.height - f.height / sc) / 2;
+    return { transform: `translate(${dx}px, ${dy}px) scale(${sc})`, clipPath: `inset(${iy}px ${ix}px round ${parseFloat(getComputedStyle(el).borderRadius) / sc || 0}px)` };
+  };
+  const fadeUI = show => fade.forEach(el => el.animate([{ opacity: show ? 0 : 1 }, { opacity: show ? 1 : 0 }], { duration: 333, easing: EASE, fill: "forwards" }));
   const show = (i, dir = 0) => {
-    index = (i + urls.length) % urls.length;
+    index = (i + items.length) % items.length;
     setZoom(false);
-    img.src = urls[index];
-    if (many) $(".vw-count", dlg).textContent = `${index + 1} / ${urls.length}`;
-    if (dir && !reduce) frame.animate([{ transform: `translateX(${dir * 60}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+    img.src = items[index].dataset.zoom;
+    if (many) $(".vw-count", dlg).textContent = `${index + 1} / ${items.length}`;
+    if (dir && !reduce) frame.animate([{ transform: `translateX(${dir * 60}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 300, easing: EASE });
   };
-  const grow = () => { // First open: grow out of the photo that was clicked.
-    const to = frame.getBoundingClientRect();
-    if (!to.width || reduce) return;
-    const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
-    frame.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${from.width / to.width})`, opacity: .4 }, { transform: "none", opacity: 1 }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
-  };
-  img.addEventListener("load", grow, { once: true });
+  if (!reduce) {
+    fadeUI(true);
+    frame.style.visibility = "hidden"; // until the photo has a size to grow to
+    img.addEventListener("load", () => {
+      frame.style.visibility = "";
+      const from = atThumb(items[index]);
+      frame.animate(from ? [from, { transform: "none", clipPath: "inset(0 round 10px)" }] : [{ opacity: 0 }, { opacity: 1 }], { duration: 333, easing: EASE });
+    }, { once: true });
+  }
   show(index);
+  const shut = () => {
+    if (closing) return; closing = true;
+    if (reduce) return dlg.close();
+    img.style.transition = "none"; setZoom(false);
+    const to = atThumb(items[index]);
+    fadeUI(false);
+    frame.animate(to ? [{ transform: "none", clipPath: "inset(0 round 10px)" }, to] : [{ opacity: 1 }, { opacity: 0 }], { duration: 333, easing: EASE, fill: "forwards" }).onfinish = () => dlg.close();
+  };
   const aim = ev => { // Zoom towards the pointer / look around while zoomed.
     const r = frame.getBoundingClientRect();
     img.style.transformOrigin = `${clamp((ev.clientX - r.left) / r.width, 0, 1) * 100}% ${clamp((ev.clientY - r.top) / r.height, 0, 1) * 100}%`;
@@ -108,13 +131,14 @@ function openViewer(urls, index, from) {
     if (many && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(ev.clientY - down.y)) { swiped = true; show(index + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1); }
     down = null;
   };
-  frame.onclick = ev => { if (swiped) return; aim(ev); setZoom(!zoomed); };
+  frame.onclick = ev => { if (swiped || closing) return; aim(ev); setZoom(!zoomed); };
   frame.onpointermove = ev => { if (zoomed) aim(ev); };
   dlg.onclick = ev => {
     const go = ev.target.closest("[data-go]");
     if (go) show(index + +go.dataset.go, +go.dataset.go);
-    else if (ev.target.closest(".vw-close") || ev.target === dlg || ev.target.classList.contains("vw-stage")) dlg.close();
+    else if (ev.target.closest(".vw-close") || ev.target === dlg || ev.target.matches(".vw-stage, .vw-bg")) shut();
   };
+  dlg.oncancel = ev => { ev.preventDefault(); shut(); }; // Esc
   dlg.onkeydown = ev => { if (many && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) { ev.preventDefault(); const d = ev.key === "ArrowRight" ? 1 : -1; show(index + d, d); } };
   dlg.onclose = () => dlg.remove();
 }

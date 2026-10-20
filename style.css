@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.5.3
+Version: 2.5.4
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -594,10 +594,11 @@ label.check{display:flex!important;gap:8px;align-items:center;color:var(--ink)!i
 .srow.discount span:last-child{color:var(--ok)}
 button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .viewer{border:0;padding:0;margin:0;width:100vw;height:100dvh;max-width:none;max-height:none;background:none;overflow:hidden}
-.viewer::backdrop{background:rgba(12,8,8,.94)}
+.viewer::backdrop{background:none}
+.vw-bg{position:absolute;inset:0;background:rgba(12,8,8,.94)}
 .vw-stage{position:absolute;inset:0 0 96px;display:flex;align-items:center;justify-content:center;padding:24px 16px 0}
 .lb-frame{overflow:hidden;border-radius:10px;cursor:zoom-in;line-height:0;touch-action:pan-y}
-.lb-frame img{display:block;max-width:calc(100vw - 32px);max-height:calc(100dvh - 140px);transition:transform .3s ease;user-select:none}
+.lb-frame img{display:block;max-width:calc(100vw - 32px);max-height:calc(100dvh - 140px);transition:transform .4s cubic-bezier(.4,0,.22,1);user-select:none}
 .lb-frame.zoomed{cursor:zoom-out;touch-action:none}
 .lb-frame.zoomed img{transform:scale(2.5)}
 @media (prefers-reduced-motion:reduce){.lb-frame img{transition:none}}
