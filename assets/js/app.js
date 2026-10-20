@@ -63,32 +63,66 @@ const trackOrder = id => api("track/" + encodeURIComponent(id)).catch(() => null
 $("#menuBtn")?.addEventListener("click", () => { const n = $("#nav"); n.classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", n.classList.contains("open")); });
 $$("#nav a").forEach(a => a.addEventListener("click", () => { $("#nav").classList.remove("open"); $("#menuBtn")?.setAttribute("aria-expanded", "false"); }));
 $$("[data-art]").forEach(el => { el.innerHTML = keepsakeArt(el.dataset.art); });
-// Full-size product photos (product page, home cards, item builder): the photo grows out of the one clicked,
-// then click (or tap) to zoom in 2.5× at that point and move to look around; click again to zoom out.
+// Full-size photo viewer (like heartprinted.com / PhotoSwipe): opens full screen from the photo clicked,
+// with ‹ × › buttons at the bottom, arrow keys and swipe to move between the photos of one gallery
+// (the [data-zoom] photos inside the same .pdp-gallery), and click/tap to zoom 2.5× and look around.
 document.addEventListener("click", e => {
   const z = e.target.closest("[data-zoom]"); if (!z) return;
-  const from = z.getBoundingClientRect();
-  const dlg = document.createElement("dialog"); dlg.className = "lightbox";
-  dlg.innerHTML = `<div class="lb-frame"><img src="${esc(z.dataset.zoom)}" alt="" draggable="false"></div><button class="close" aria-label="Close">×</button><p class="lb-hint">Click the photo to zoom</p>`;
-  dlg.onclick = ev => { if (ev.target === dlg || ev.target.closest(".close")) dlg.close(); };
-  dlg.onclose = () => dlg.remove();
+  const group = z.closest(".pdp-gallery"), items = group ? $$("[data-zoom]", group) : [z];
+  openViewer(items.map(el => el.dataset.zoom), items.indexOf(z), z.getBoundingClientRect());
+});
+function openViewer(urls, index, from) {
+  const many = urls.length > 1;
+  const dlg = document.createElement("dialog"); dlg.className = "viewer";
+  dlg.innerHTML = `<div class="vw-stage"><div class="lb-frame"><img alt="" draggable="false"></div></div>
+    <div class="vw-bar">${many ? `<button class="vw-btn" data-go="-1" aria-label="Previous">${VW.prev}</button>` : ""}<button class="vw-btn vw-close" aria-label="Close gallery">${VW.close}</button>${many ? `<button class="vw-btn" data-go="1" aria-label="Next">${VW.next}</button>` : ""}</div>
+    ${many ? `<p class="vw-count" aria-live="polite"></p>` : ""}`;
   document.body.appendChild(dlg); dlg.showModal();
-  const frame = $(".lb-frame", dlg), img = $("img", frame);
-  const grow = () => {
+  const frame = $(".lb-frame", dlg), img = $("img", frame), reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let zoomed = false;
+  const setZoom = on => { zoomed = on; frame.classList.toggle("zoomed", on); };
+  const show = (i, dir = 0) => {
+    index = (i + urls.length) % urls.length;
+    setZoom(false);
+    img.src = urls[index];
+    if (many) $(".vw-count", dlg).textContent = `${index + 1} / ${urls.length}`;
+    if (dir && !reduce) frame.animate([{ transform: `translateX(${dir * 60}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+  };
+  const grow = () => { // First open: grow out of the photo that was clicked.
     const to = frame.getBoundingClientRect();
-    if (!to.width || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!to.width || reduce) return;
     const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
     frame.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${from.width / to.width})`, opacity: .4 }, { transform: "none", opacity: 1 }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
   };
-  if (img.complete) grow(); else img.onload = grow;
-  let zoomed = false;
-  const aim = ev => { // Zoom towards the pointer.
+  img.addEventListener("load", grow, { once: true });
+  show(index);
+  const aim = ev => { // Zoom towards the pointer / look around while zoomed.
     const r = frame.getBoundingClientRect();
     img.style.transformOrigin = `${clamp((ev.clientX - r.left) / r.width, 0, 1) * 100}% ${clamp((ev.clientY - r.top) / r.height, 0, 1) * 100}%`;
   };
-  frame.onclick = ev => { zoomed = !zoomed; aim(ev); frame.classList.toggle("zoomed", zoomed); $(".lb-hint", dlg).textContent = zoomed ? "Move to look around · click to zoom out" : "Click the photo to zoom"; };
+  let down = null, swiped = false; // Swipe left/right (when not zoomed) to change photo.
+  frame.onpointerdown = ev => { down = { x: ev.clientX, y: ev.clientY }; swiped = false; };
+  frame.onpointerup = ev => {
+    if (!down || zoomed) return;
+    const dx = ev.clientX - down.x;
+    if (many && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(ev.clientY - down.y)) { swiped = true; show(index + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1); }
+    down = null;
+  };
+  frame.onclick = ev => { if (swiped) return; aim(ev); setZoom(!zoomed); };
   frame.onpointermove = ev => { if (zoomed) aim(ev); };
-});
+  dlg.onclick = ev => {
+    const go = ev.target.closest("[data-go]");
+    if (go) show(index + +go.dataset.go, +go.dataset.go);
+    else if (ev.target.closest(".vw-close") || ev.target === dlg || ev.target.classList.contains("vw-stage")) dlg.close();
+  };
+  dlg.onkeydown = ev => { if (many && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) { ev.preventDefault(); const d = ev.key === "ArrowRight" ? 1 : -1; show(index + d, d); } };
+  dlg.onclose = () => dlg.remove();
+}
+const VW = {
+  prev: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+  next: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
+  close: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
 
 
 /* ---------- cart: saved in IndexedDB, so it survives page changes and reloads ----------
