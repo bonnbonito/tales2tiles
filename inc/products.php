@@ -3,8 +3,10 @@
  * Products: the "Products" menu in wp-admin (post type tt_product, classic editor).
  *
  * Add, remove, reorder (the "Order" number in the Attributes box) or draft products there.
- * Only published products are sold. The post slug is the product key used in
- * /order/?product=<key> and saved on orders; it is set once from the first title.
+ * Only published products are sold. Each product has its own page at /products/<slug>/
+ * (single-tt_product.php); the slug can be edited like any permalink.
+ * The product KEY (saved on orders, used in ?product=<key>) is locked in meta `_tt_key`
+ * the first time a product is published, so changing the slug later never breaks orders.
  * Each order also saves its own print settings, so editing or deleting a product
  * never breaks past orders.
  *
@@ -29,7 +31,12 @@ function tales2tiles_register_product_type() {
 				'edit_item'     => __( 'Edit product', 'tales2tiles' ),
 				'all_items'     => __( 'All products', 'tales2tiles' ),
 			),
-			'public'       => false,
+			'public'       => true, // Product pages: /products/<slug>/.
+			'rewrite'      => array(
+				'slug'       => 'products',
+				'with_front' => false,
+			),
+			'has_archive'  => false, // The Order page lists the products.
 			'show_ui'      => true,
 			'menu_icon'    => 'dashicons-products',
 			'supports'     => array( 'title', 'page-attributes' ),
@@ -39,6 +46,80 @@ function tales2tiles_register_product_type() {
 	);
 }
 add_action( 'init', 'tales2tiles_register_product_type' );
+
+/**
+ * A product's key: locked in `_tt_key` at first publish, the slug before that.
+ *
+ * @param WP_Post $post Product.
+ * @return string
+ */
+function tales2tiles_product_key( $post ) {
+	$key = (string) get_post_meta( $post->ID, '_tt_key', true );
+	return '' !== $key ? $key : $post->post_name;
+}
+
+/**
+ * Lock the key of every published product that doesn't have one yet (current slug).
+ */
+function tales2tiles_lock_product_keys() {
+	foreach ( get_posts( array( 'post_type' => 'tt_product', 'post_status' => 'publish', 'numberposts' => -1 ) ) as $post ) {
+		if ( '' === (string) get_post_meta( $post->ID, '_tt_key', true ) && '' !== $post->post_name ) {
+			add_post_meta( $post->ID, '_tt_key', $post->post_name, true );
+		}
+	}
+}
+/**
+ * One time: give the starting products readable addresses (e.g. /products/2-5-x-2-5-photo-magnet/)
+ * instead of their short keys. Keys are locked first, so orders and old links keep working.
+ */
+function tales2tiles_pretty_product_slugs() {
+	foreach ( array_keys( tales2tiles_default_products() ) as $key ) {
+		$post = get_page_by_path( $key, OBJECT, 'tt_product' );
+		if ( $post && tales2tiles_product_key( $post ) === $key ) {
+			$slug = sanitize_title( str_replace( array( '″', '×' ), array( '', 'x' ), $post->post_title ) );
+			wp_update_post(
+				array(
+					'ID'        => $post->ID,
+					'post_name' => wp_unique_post_slug( $slug, $post->ID, 'publish', 'tt_product', 0 ),
+				)
+			);
+		}
+	}
+}
+
+add_action(
+	'save_post_tt_product',
+	static function ( $post_id, $post ) {
+		if ( 'publish' === $post->post_status && '' !== $post->post_name && '' === (string) get_post_meta( $post_id, '_tt_key', true ) ) {
+			add_post_meta( $post_id, '_tt_key', $post->post_name, true ); // Locked from now on.
+		}
+	},
+	10,
+	2
+);
+
+/**
+ * Icon choices for badges and shared product-page sections (tales2tiles_icon names).
+ *
+ * @return array
+ */
+function tales2tiles_icon_choices() {
+	return array(
+		'check'   => __( 'Check mark', 'tales2tiles' ),
+		'heart'   => __( 'Heart', 'tales2tiles' ),
+		'star'    => __( 'Star', 'tales2tiles' ),
+		'shield'  => __( 'Shield', 'tales2tiles' ),
+		'truck'   => __( 'Truck', 'tales2tiles' ),
+		'box'     => __( 'Box', 'tales2tiles' ),
+		'gift'    => __( 'Gift', 'tales2tiles' ),
+		'upload'  => __( 'Upload', 'tales2tiles' ),
+		'cart'    => __( 'Cart', 'tales2tiles' ),
+		'pin'     => __( 'Location pin', 'tales2tiles' ),
+		'sparkle' => __( 'Sparkle', 'tales2tiles' ),
+		'clock'   => __( 'Clock', 'tales2tiles' ),
+		'wallet'  => __( 'Wallet', 'tales2tiles' ),
+	);
+}
 
 /**
  * Product fields grouped by section.
@@ -54,7 +135,54 @@ function tales2tiles_product_fields() {
 		__( 'Details', 'tales2tiles' )             => array(
 			'blurb' => array( 'text', __( 'Short description', 'tales2tiles' ), '' ),
 			'group' => array( 'select', __( 'Product group', 'tales2tiles' ), 'magnets', array( 'choices' => $groups ) ),
-			'image' => array( 'image', __( 'Photo', 'tales2tiles' ), '', array( 'help' => __( 'Shown on the home page and in the order form.', 'tales2tiles' ) ) ),
+			'image' => array( 'image', __( 'Photo', 'tales2tiles' ), '', array( 'help' => __( 'The main photo: product cards, the Order page and the top of the product page.', 'tales2tiles' ) ) ),
+		),
+		__( 'Product page', 'tales2tiles' )        => array(
+			'gallery'   => array( 'gallery', __( 'More photos', 'tales2tiles' ), '', array( 'help' => __( 'Shown under the main photo on the product page.', 'tales2tiles' ) ) ),
+			'options'   => array(
+				'list',
+				__( 'Pieces dropdown', 'tales2tiles' ),
+				array(),
+				array(
+					'columns' => array( array( 'int', __( 'Pieces', 'tales2tiles' ) ), array( 'text', __( 'Label (optional)', 'tales2tiles' ) ) ),
+					'add'     => __( 'Add choice', 'tales2tiles' ),
+					'help'    => __( 'The choices customers pick from, e.g. 6 → "Set of 6". The first one is selected at the start and used for the "₱… for 6 magnets" price on the Order page. Price comes from the price or price breaks below. Leave empty for automatic sets.', 'tales2tiles' ),
+				),
+			),
+			'other'     => array( 'checkbox', __( 'Add an "Other amount…" choice', 'tales2tiles' ), '1', array( 'help' => __( 'Lets customers type any quantity between the minimum and maximum.', 'tales2tiles' ) ) ),
+			'unit_word' => array( 'text', __( 'Item word', 'tales2tiles' ), '', array( 'help' => __( 'Used in "₱1,700.00 for 6 magnets". Leave empty for "magnets" (photo magnet group) or "pieces".', 'tales2tiles' ) ) ),
+			'features'  => array(
+				'list',
+				__( 'Feature points', 'tales2tiles' ),
+				array(
+					array( __( 'Premium photo magnets', 'tales2tiles' ), __( 'Sharp 300 dpi prints on sturdy, glossy magnets.', 'tales2tiles' ) ),
+					array( __( 'Moments that last', 'tales2tiles' ), __( 'Turn your favorite photos into keepsakes you see every day.', 'tales2tiles' ) ),
+					array( __( 'Easy to order', 'tales2tiles' ), __( 'Upload, crop and preview your photos right from your phone.', 'tales2tiles' ) ),
+					array( __( 'Made with love', 'tales2tiles' ), __( 'Every order is printed and packed by hand.', 'tales2tiles' ) ),
+				),
+				array(
+					'columns' => array( array( 'text', __( 'Title', 'tales2tiles' ) ), array( 'text', __( 'Text', 'tales2tiles' ) ) ),
+					'add'     => __( 'Add feature', 'tales2tiles' ),
+				),
+			),
+			'badges'    => array(
+				'list',
+				__( 'Badges', 'tales2tiles' ),
+				array(
+					array( 'heart', __( 'Printed with care', 'tales2tiles' ), __( 'Every magnet checked', 'tales2tiles' ) ),
+					array( 'wallet', __( 'Easy payment', 'tales2tiles' ), __( 'GCash or BPI', 'tales2tiles' ) ),
+					array( 'truck', __( 'Order tracking', 'tales2tiles' ), __( 'Follow your order online', 'tales2tiles' ) ),
+				),
+				array(
+					'columns' => array(
+						array( 'select', __( 'Icon', 'tales2tiles' ), 'check', array( 'choices' => tales2tiles_icon_choices() ) ),
+						array( 'text', __( 'Title', 'tales2tiles' ) ),
+						array( 'text', __( 'Small text', 'tales2tiles' ) ),
+					),
+					'add'     => __( 'Add badge', 'tales2tiles' ),
+					'help'    => __( 'The row of badges under the Upload button.', 'tales2tiles' ),
+				),
+			),
 		),
 		__( 'Price and quantity', 'tales2tiles' )  => array(
 			'price' => array( 'number', __( 'Price (₱)', 'tales2tiles' ), '', array( 'help' => __( 'Used when there are no price breaks below.', 'tales2tiles' ) ) ),
@@ -174,7 +302,20 @@ function tales2tiles_products() {
 			}
 		}
 
-		$products[ $post->post_name ] = $p;
+		$options = array();
+		foreach ( (array) $f( 'options' ) as $row ) {
+			$q = (int) ( $row[0] ?? 0 );
+			if ( $q >= 1 && $q <= $p['max'] ) {
+				$options[] = array( $q, (string) ( $row[1] ?? '' ) );
+			}
+		}
+		$p['options']  = $options; // Pieces dropdown; empty = automatic sets (app.js variants()).
+		$p['other']    = '1' === $f( 'other' );
+		$p['unitWord'] = '' !== trim( $f( 'unit_word' ) ) ? $f( 'unit_word' ) : ( 'magnets' === $p['group'] ? __( 'magnets', 'tales2tiles' ) : __( 'pieces', 'tales2tiles' ) );
+		$p['url']      = get_permalink( $post );
+		$p['postId']   = $post->ID;
+
+		$products[ tales2tiles_product_key( $post ) ] = $p;
 	}
 	return array( $products, $swatch );
 }
@@ -213,6 +354,7 @@ function tales2tiles_seed_products() {
 				'post_status' => 'publish',
 				'post_title'  => $p['name'],
 				'post_name'   => $key,
+				'meta_input'  => array( '_tt_key' => $key ),
 				'menu_order'  => $order++,
 			)
 		);

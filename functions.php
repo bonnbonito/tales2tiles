@@ -58,25 +58,33 @@ function tales2tiles_create_pages() {
 		update_option( 'page_on_front', get_page_by_path( 'home', OBJECT, 'page' )->ID );
 	}
 	tales2tiles_seed_products();
+	tales2tiles_lock_product_keys(); // Before slugs can be edited: orders keep using these keys.
+	if ( '5' !== get_option( 'tales2tiles_pages' ) ) {
+		tales2tiles_pretty_product_slugs(); // Once, when product pages arrive.
+	}
+	flush_rewrite_rules(); // /products/<slug>/ pages.
 }
 add_action( 'after_switch_theme', 'tales2tiles_create_pages' );
 add_action(
 	'admin_init',
 	static function () {
 		// Covers sites where the theme was already active before these pages existed.
-		if ( '4' !== get_option( 'tales2tiles_pages' ) && current_user_can( 'manage_options' ) ) {
+		if ( '5' !== get_option( 'tales2tiles_pages' ) && current_user_can( 'manage_options' ) ) {
 			tales2tiles_create_pages();
-			update_option( 'tales2tiles_pages', '4' );
+			update_option( 'tales2tiles_pages', '5' );
 		}
 	}
 );
 
 /**
- * Which app view the current page shows: order, track, admin, or '' (home/other).
+ * Which app view the current page shows: product, order, cart, track, admin, or '' (home/other).
  *
  * @return string
  */
 function tales2tiles_view() {
+	if ( is_singular( 'tt_product' ) ) {
+		return 'product';
+	}
 	if ( is_page( 'order' ) ) {
 		return 'order';
 	}
@@ -103,7 +111,7 @@ function tales2tiles_enqueue_assets() {
 		null // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Google Fonts handles versioning.
 	);
 	wp_enqueue_style( 'tales2tiles-style', get_stylesheet_uri(), array( 'tales2tiles-fonts' ), TALES2TILES_VERSION );
-	if ( in_array( tales2tiles_view(), array( 'order', 'cart' ), true ) ) {
+	if ( in_array( tales2tiles_view(), array( 'order', 'cart', 'product' ), true ) ) {
 		// Extra fonts for text on photos (app.js FONTS); Jost, Caveat and Cormorant come with the main fonts.
 		wp_enqueue_style(
 			'tales2tiles-editor-fonts',
@@ -131,6 +139,7 @@ function tales2tiles_enqueue_assets() {
 	}
 	$data = array(
 		'view'        => tales2tiles_view(),
+		'product'     => is_singular( 'tt_product' ) ? tales2tiles_product_key( get_queried_object() ) : '',
 		'config'      => $config['shop'],
 		'products'    => $config['products'],
 		'groups'      => $config['groups'],

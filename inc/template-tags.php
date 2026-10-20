@@ -59,12 +59,58 @@ function tales2tiles_icon( $name ) {
 		'smallHeart' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" width="22" height="22" aria-hidden="true"><path d="M12 20S3 14.5 3 8.6A4.5 4.5 0 0 1 12 6.5a4.5 4.5 0 0 1 9 2.1C21 14.5 12 20 12 20z"/></svg>',
 		'gift18'     => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1.5S10 8 12 8zm0 0c2-4 6-4 6-1.5S14 8 12 8z"/></svg>',
 		'cart'       => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2"/><circle cx="9.5" cy="20" r="1.3"/><circle cx="17.5" cy="20" r="1.3"/></svg>',
+		'check'      => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.5 9.5"/></svg>',
+		'shield'     => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>',
+		'box'        => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg>',
+		'upload'     => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>',
+		'pin'        => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+		'sparkle'    => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4M5 17v4M3 19h4"/></svg>',
+		'clock'      => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+		'wallet'     => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a2 2 0 0 1 2-2h11v3"/><circle cx="16" cy="13.5" r="1.3"/></svg>',
 		'menu'       => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
 		'instagram'  => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
 		'facebook'   => '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-1.6 19.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7A10 10 0 0 0 12 2z"/></svg>',
 		'tiktok'     => '<svg width="20" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.5 3c.3 2.2 1.6 3.7 3.8 3.9v3.1c-1.4.1-2.7-.3-3.8-1v6.2c0 3.6-2.9 5.8-5.8 5.8A5.6 5.6 0 0 1 5 15.4c0-3.4 3-5.9 6.4-5.3v3.2c-1.5-.4-3.2.5-3.2 2.1 0 1.4 1.1 2.4 2.4 2.4 1.5 0 2.5-1 2.5-2.7V3z"/></svg>',
 	);
 	return $icons[ $name ] ?? '';
+}
+
+/**
+ * Pieces dropdown choices: array( array( pieces, label ), … ). The first is the default.
+ * Products → "Pieces dropdown" if set, otherwise automatic sets.
+ *
+ * @param array $p Product (tales2tiles_config()['products'][ key ]).
+ * @return array
+ */
+function tales2tiles_variants( $p ) {
+	$auto = static function ( $q ) use ( $p ) {
+		if ( ! empty( $p['tiers'] ) ) {
+			/* translators: %d: number of pieces. */
+			return sprintf( __( 'Set of %d', 'tales2tiles' ), $q );
+		}
+		return $q . ' ' . ( 1 === $q ? preg_replace( '/s$/', '', $p['unitWord'] ) : $p['unitWord'] );
+	};
+	if ( $p['options'] ) {
+		return array_map( static fn( $o ) => array( $o[0], '' !== $o[1] ? $o[1] : $auto( $o[0] ) ), $p['options'] );
+	}
+	$qs = ! empty( $p['tiers'] ) ? array( $p['min'], 4, 6, 9, 12, 24 ) : range( 1, 10 );
+	$qs = array_values( array_unique( array_filter( $qs, static fn( $q ) => $q >= $p['min'] && $q <= $p['max'] ) ) );
+	sort( $qs );
+	return array_map( static fn( $q ) => array( $q, $auto( $q ) ), $qs ? $qs : array( $p['min'] ) );
+}
+
+/**
+ * "₱1,700.00" and "for 6 magnets" for a quantity (default: the first dropdown choice).
+ *
+ * @param array    $p   Product.
+ * @param int|null $qty Pieces.
+ * @return array array( price, note ).
+ */
+function tales2tiles_set_price( $p, $qty = null ) {
+	$qty = $qty ?? tales2tiles_variants( $p )[0][0];
+	/* translators: 1: number of pieces, 2: item word, e.g. "magnets". */
+	$word = 1 === $qty ? preg_replace( '/s$/', '', $p['unitWord'] ) : $p['unitWord']; // "for 1 magnet".
+	return array( '₱' . number_format( tales2tiles_unit_price( $p, $qty ) * $qty, 2 ), sprintf( __( 'for %1$d %2$s', 'tales2tiles' ), $qty, $word ) );
 }
 
 /**
@@ -105,7 +151,7 @@ function tales2tiles_product_card( $key, $product ) {
 			<?php else : ?>
 				<p class="price"><?php echo esc_html( tales2tiles_peso( $product['price'] ) ); ?> <span><?php echo esc_html( $product['unit'] ); ?></span></p>
 			<?php endif; ?>
-			<a class="btn sm" href="<?php echo esc_url( tales2tiles_page_url( 'order' ) . '#p-' . $key ); ?>"><?php esc_html_e( 'Order this', 'tales2tiles' ); ?></a>
+			<a class="btn sm" href="<?php echo esc_url( $product['url'] ); ?>"><?php esc_html_e( 'Order this', 'tales2tiles' ); ?></a>
 		</div>
 	</article>
 	<?php

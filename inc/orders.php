@@ -396,7 +396,8 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 		}
 		$photo_count        += $needed;
 		$product_qty[ $key ] = ( $product_qty[ $key ] ?? 0 ) + $qty * $copies; // Pieces: price breaks and minimums count every printed piece.
-		$items[]             = compact( 'key', 'product', 'qty', 'copies', 'color', 'photos' );
+		$feature             = ! empty( $raw_item['feature'] ); // "I agree to have my order featured on social media".
+		$items[]             = compact( 'key', 'product', 'qty', 'copies', 'color', 'photos', 'feature' );
 	}
 	foreach ( $product_qty as $key => $qty ) {
 		if ( $qty < $products[ $key ]['min'] ) {
@@ -503,6 +504,7 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 			'color'      => $item['color'],
 			'qty'        => $item['qty'],
 			'copies'     => $item['copies'],
+			'feature'    => $item['feature'],
 			'unit'       => $unit,
 			'subtotal'   => $unit * $item['qty'] * $item['copies'],
 			'photoFrom'  => $item['photoFrom'], // This item's photos: order photos[photoFrom … photoFrom + photoCount - 1].

@@ -287,14 +287,11 @@ function bindNav(validate, onNext) {
   });
 }
 
-/* ---------- /order/: product cards — choose a variant, then "Upload pictures" (like the old mgnts.to store) ---------- */
-const priceFrom = d => d.tiers ? `From ${peso0(d.tiers[d.tiers.length - 1][1])} each` : `${peso0(d.price)} ${esc(d.unit)}`;
-/* Quantity choices for a product card: "Set of N" for price-break products, piece counts otherwise. */
-function variants(d) {
-  const qs = d.tiers ? [...new Set([d.min, 4, 6, 9, 12, 24])] : Array.from({ length: Math.min(d.max, 10) }, (_, i) => i + 1);
-  return qs.filter(q => q >= 1 && q <= d.max).sort((a, b) => a - b).map(q => [q, d.tiers ? `Set of ${q}` : d.per === 9 ? (q === 1 ? "1 set" : `${q} sets`) : (q === 1 ? "1 piece" : `${q} pieces`)]);
-}
-const qtyText = it => { const d = PRODUCTS[it.product]; return d.tiers ? `Set of ${it.qty}` : d.per === 9 ? `${it.qty} set${it.qty > 1 ? "s" : ""}` : `${it.qty} piece${it.qty > 1 ? "s" : ""}`; };
+/* How an item's quantity reads: the product's own dropdown label (Products → "Pieces dropdown"), else "Set of 6" / "6 magnets". */
+const qtyText = it => {
+  const d = PRODUCTS[it.product], opt = (d.options || []).find(o => o[0] === it.qty);
+  return opt && opt[1] ? opt[1] : d.tiers ? `Set of ${it.qty}` : `${it.qty} ${it.qty === 1 ? d.unitWord.replace(/s$/, "") : d.unitWord}`;
+};
 /* "Upload images" modal: drop zone + "Upload From PC", or Google Drive / Camera / Facebook. Calls onFiles(File[]). */
 const SRC_ICON = {
   photos: '<svg width="84" height="72" viewBox="0 0 84 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="22" width="34" height="34" rx="5" transform="rotate(-12 27 39)"/><rect x="38" y="10" width="32" height="32" rx="5" transform="rotate(14 54 26)"/><circle cx="22" cy="36" r="3"/><circle cx="56" cy="22" r="3"/><path d="M14 52l9-9 8 7 7-6M8 12l3 0M9.5 10.5v3M74 54h4M76 52v4"/><circle cx="76" cy="44" r="2"/><circle cx="12" cy="20" r="2"/></svg>',
@@ -325,85 +322,31 @@ function openUploader(onFiles, multiple = true) {
   $$("[data-src]", m).forEach(b => b.onclick = () => toast(`${b.dataset.src} import is coming soon. For now, save the photos to your device and use Upload From PC.`));
 }
 
-/* Start a cart item from a product card or the product panel: upload photos, or add straight away. */
-function startItem(k, qty, color) {
+/* Start a cart item from the product page: upload photos, or add straight away. */
+function startItem(k, qty, color, feature = false) {
   if (CART.length >= MAX_ITEMS) return toast(`Your cart is full (${MAX_ITEMS} items). Check out first, then start a new order.`);
-  IT = { ...newItem(k), qty, color };
+  IT = { ...newItem(k), qty, color, feature };
   if (!PRODUCTS[k].per) return saveItem(); // Nothing to upload.
-  openUploader(files => { render = renderBuilder; S.step = 1; renderBuilder(); addPhotos(files); });
-}
-/* Product panel (card's expand icon): big photo, name, price, size, variant tabs, Upload pictures.
-   The variant is shared with the card's dropdown. */
-function openProductPanel(card) {
-  const k = card.dataset.k, d = PRODUCTS[k], v = $("[data-variant]", card), color = $("[data-color]", card);
-  const el = document.createElement("div"); el.className = "drawer-wrap"; el.id = "ppanel";
-  el.innerHTML = `<div class="drawer-bg" data-close></div>
-    <aside class="drawer pp" role="dialog" aria-modal="true" aria-labelledby="ppName">
-      <button class="pp-close" data-close>Close</button>
-      <div class="pp-body">
-        ${d.photo ? `<button type="button" class="pp-img" data-zoom="${esc(d.photo)}" aria-label="View full size">${productArt(k)}</button>` : `<div class="pp-img">${productArt(k)}</div>`}
-        <h2 id="ppName">${esc(d.name)}</h2>
-        <p class="pp-price" id="ppPrice"></p>
-        <p class="pp-size">${esc(d.blurb)}</p>
-      </div>
-      <footer>
-        ${d.colors ? `<div class="pp-tabs" role="radiogroup" aria-label="${esc(d.colorLabel)}">${d.colors.map(c => `<button role="radio" data-pc="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
-        <div class="pp-tabs" role="radiogroup" aria-label="Choose a variant">${variants(d).map(([q, l]) => `<button role="radio" data-pv="${q}">${l}</button>`).join("")}</div>
-        <button class="btn block pp-go" id="ppGo">${d.per ? "Upload pictures" : "Add to cart"}</button>
-      </footer>
-    </aside>`;
-  document.body.appendChild(el); document.body.style.overflow = "hidden";
-  if (v.value === "other") v.value = v.options[0].value; // The panel offers the set sizes only.
-  const sync = () => {
-    $$("[data-pv]", el).forEach(b => b.setAttribute("aria-checked", String(b.dataset.pv === v.value)));
-    $$("[data-pc]", el).forEach(b => b.setAttribute("aria-checked", String(b.dataset.pc === color?.value)));
-    const q = +v.value, unit = unitFor(k, productTotal(k) + q);
-    $("#ppPrice", el).textContent = `${peso(unit * q)}${q > 1 ? ` · ${peso(unit)} each` : ""}`;
-    if (d.art === "leather" && color) $(".pp-img", el).innerHTML = keepsakeArt("leather", color.value); // Strap drawn in the chosen color.
-    v.dispatchEvent(new Event("change")); // Card price follows.
-  };
-  $$("[data-pv]", el).forEach(b => b.onclick = () => { v.value = b.dataset.pv; sync(); });
-  $$("[data-pc]", el).forEach(b => b.onclick = () => { color.value = b.dataset.pc; sync(); });
-  const close = () => { el.classList.remove("open"); document.body.style.overflow = ""; setTimeout(() => el.remove(), 250); };
-  el.addEventListener("click", e => { if (e.target.closest("[data-close]")) close(); });
-  el.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
-  $("#ppGo", el).onclick = () => { close(); startItem(k, +v.value || 1, color ? color.value : null); };
-  sync();
-  requestAnimationFrame(() => el.classList.add("open"));
-  $(".pp-close", el).focus();
+  openUploader(files => { render = renderBuilder; S.step = 1; renderBuilder(); window.scrollTo({ top: 0 }); addPhotos(files); });
 }
 
-function renderShop() {
-  app.innerHTML = `<div class="shop"><div class="wrap">
-      <div class="shop-head"><h1>Order</h1><p>Create your photo magnets here:</p></div>
-      ${GROUPS.map(([g, title]) => {
-        const keys = Object.keys(PRODUCTS).filter(k => PRODUCTS[k].group === g);
-        return keys.length ? `<section class="shop-group"><h2>${esc(title)}</h2><div class="shop-grid">${keys.map(k => { const d = PRODUCTS[k];
-          return `<article class="shop-card" id="p-${esc(k)}" data-k="${esc(k)}">
-            <div class="art ${d.photo ? "photo" : ""}">${productArt(k)}<button type="button" class="expand" data-panel aria-label="Open full preview of ${esc(d.name)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button></div>
-            <div class="shop-card-body">
-              <h3>${esc(d.name)}</h3><span class="from" data-price></span><span class="size">${esc(d.blurb)}</span>
-              ${d.colors ? `<label class="sr" for="c-${esc(k)}">${esc(d.colorLabel)}</label><select class="input sel" id="c-${esc(k)}" data-color>${d.colors.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : ""}
-              <label class="sr" for="v-${esc(k)}">Choose a variant</label>
-              <select class="input sel" id="v-${esc(k)}" data-variant>${variants(d).map(([q, l]) => `<option value="${q}">${l}</option>`).join("")}<option value="other">Other amount…</option></select>
-              <button class="btn block upload-btn" data-go>${d.per ? "Upload pictures" : "Add to cart"}</button>
-            </div></article>`; }).join("")}</div></section>` : "";
-      }).join("")}
-    </div></div>`;
-  $$(".shop-card").forEach(card => {
-    const k = card.dataset.k, d = PRODUCTS[k], v = $("[data-variant]", card), color = $("[data-color]", card);
-    const price = () => {
-      if (v.value === "other") { $("[data-price]", card).textContent = priceFrom(d); return; }
-      const q = +v.value, unit = unitFor(k, productTotal(k) + q);
-      $("[data-price]", card).textContent = `${peso(unit * q)}${q > 1 ? ` · ${peso(unit)} each` : ""}`;
-    };
-    v.onchange = () => { if (v.value === "other") location.href = `?product=${encodeURIComponent(k)}`; else price(); };
-    price();
-    $("[data-go]", card).onclick = () => startItem(k, +v.value || 1, color ? color.value : null);
-    $("[data-panel]", card)?.addEventListener("click", () => openProductPanel(card));
-  });
-  const target = location.hash && document.getElementById(location.hash.slice(1)); // Home page "Order this" links.
-  if (target) { target.classList.add("flash"); target.scrollIntoView({ block: "center" }); }
+/* ---------- Product page (single-tt_product.php): pieces dropdown, live price, Upload pictures ---------- */
+let PRODUCT_HTML = ""; // The server-built page, restored after "Add to cart".
+function initProductPage() {
+  const k = TT.product, d = PRODUCTS[k]; if (!d) return;
+  const qty = $("#pdpQty"), color = $("#pdpColor"), consent = $("#pdpConsent");
+  const price = () => {
+    const q = +qty.value || d.min, unit = unitFor(k, productTotal(k) + q); // Price breaks count what's already in the cart.
+    $("#pdpPrice").textContent = peso(unit * q);
+    $("#pdpNote").textContent = `for ${q} ${q === 1 ? d.unitWord.replace(/s$/, "") : d.unitWord}`;
+  };
+  qty.onchange = () => { if (qty.value === "other") location.href = `${TT.urls.order}?product=${encodeURIComponent(k)}`; else price(); };
+  if (color && d.art === "leather") { color.onchange = () => { $(".pdp-main").innerHTML = keepsakeArt("leather", color.value); }; } // Strap drawn in the chosen color.
+  $("#pdpGo").onclick = () => startItem(k, +qty.value || d.min, color ? color.value : null, !!consent?.checked);
+  $$(".help[data-help]").forEach(b => b.onclick = () => toast(b.dataset.help)); // Phones have no hover tooltip.
+  $$("[data-art]", app).forEach(el => { el.innerHTML = keepsakeArt(el.dataset.art); });
+  color?.onchange?.();
+  price();
 }
 
 /* ---------- /order/?product=… (custom amount) or ?edit=…: one cart item ---------- */
@@ -425,12 +368,14 @@ const addLabel = () => editing() ? "Save changes" : "Add to cart";
 async function saveItem() {
   const btn = $("#next") || document.activeElement; if (btn) btn.disabled = true;
   try {
-    await cartStore.put({ id: IT.id, added: IT.added, product: IT.product, color: IT.color, qty: IT.qty, copies: IT.copies || 1, photos: IT.photos.map(({ id, file, crop, w, h }) => ({ id, file, crop, w, h })) });
+    await cartStore.put({ id: IT.id, added: IT.added, product: IT.product, color: IT.color, qty: IT.qty, copies: IT.copies || 1, feature: !!IT.feature, photos: IT.photos.map(({ id, file, crop, w, h }) => ({ id, file, crop, w, h })) });
     IT = null;
     await loadCart();
-    if (location.search) history.replaceState(null, "", TT.urls.order);
-    render = renderShop; renderShop(); window.scrollTo({ top: 0 });
-    openDrawer(); // Like the old store: the cart slides in, the customer keeps shopping or checks out.
+    if (TT.view === "product") { // Back to the product page, with the cart sliding in.
+      app.innerHTML = PRODUCT_HTML; initProductPage(); window.scrollTo({ top: 0 }); openDrawer();
+    } else { // Builder on /order/?product= or ?edit=: show the Order page with the cart open.
+      ls("tt-open-cart", "1"); location.href = TT.urls.order;
+    }
   } catch (e) {
     if (btn) btn.disabled = false;
     toast(cartOK ? "Couldn't save to your cart. Free up some space on your device and try again." : "Your browser is blocking storage (private browsing?). Use a normal window to order.");
@@ -472,7 +417,7 @@ function stepOptions(p) {
         ${d.tiers ? `<table class="tiers wide" id="tiers"><tbody>${d.tiers.map((t, i) => `<tr><td>${tierRange(d, i)}</td><td>${peso0(t[1])} each</td></tr>`).join("")}</tbody></table>` : ""}
         <p class="line" id="line" aria-live="polite"></p>
       </div>
-    </div>${navHTML(last ? addLabel() : "Next: upload pictures", [TT.urls.order, "All products"])}`;
+    </div>${navHTML(last ? addLabel() : "Next: upload pictures", [BP().url || TT.urls.order, "Back to product"])}`;
   const update = () => {
     const n = others + IT.qty, unit = unitFor(IT.product, n), need = photosNeeded();
     $("#qv").value = IT.qty;
@@ -522,7 +467,7 @@ function stepPreview(p) {
         ${d.pin ? `<p class="hint">The dashed ring is the front of the pin. Anything outside it wraps around the edge.</p>` : ""}
         <p class="note warn" id="lowNote" hidden>Some photos are low resolution and may print blurry. Use a larger original, or zoom out.</p>
         <p class="line" id="pvline"></p>
-        ${navHTML(addLabel(), editing() ? [TT.urls.cart, "Back to cart"] : [TT.urls.order, "All products"])}
+        ${navHTML(addLabel(), editing() ? [TT.urls.cart, "Back to cart"] : [BP().url || TT.urls.order, "Back to product"])}
       </aside>
     </div>`;
   const grid = $("#pvgrid");
@@ -844,7 +789,7 @@ function closeDrawer() {
   const el = $("#drawer"); if (!el) return;
   el.classList.remove("open"); document.body.style.overflow = "";
   setTimeout(() => el.remove(), 250);
-  if (TT.view === "order" && render === renderShop) renderShop(); // Refresh card prices.
+  if (TT.view === "product" && $("#pdpPrice")) initProductPage(); // Prices may change with the cart.
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 $(".cart-link")?.addEventListener("click", e => { if (TT.view !== "cart") { e.preventDefault(); openDrawer(); } });
@@ -964,7 +909,7 @@ async function submitOrder() {
     let done = 0;
     for (const [n, it] of CART.entries()) {
       const d = PRODUCTS[it.product];
-      fd.append(`items[${n}][product]`, it.product); fd.append(`items[${n}][color]`, it.color || ""); fd.append(`items[${n}][qty]`, it.qty); fd.append(`items[${n}][copies]`, it.copies || 1);
+      fd.append(`items[${n}][product]`, it.product); fd.append(`items[${n}][color]`, it.color || ""); fd.append(`items[${n}][qty]`, it.qty); fd.append(`items[${n}][copies]`, it.copies || 1); if (it.feature) fd.append(`items[${n}][feature]`, "1");
       for (const ph of it.photos) {
         btn.innerHTML = `<span class="spinner"></span> Preparing photo ${++done} of ${total}…`;
         // Crop from the original's full resolution (crop values are relative, so framing matches the preview).
@@ -1118,7 +1063,7 @@ async function openOrder(id) {
   const label = (it, i) => it.print?.sides ? `#${Math.floor(i / 2) + 1} ${i % 2 ? "back" : "front"}` : `${i + 1}`;
   const photosBox = it => {
     const ps = itemPhotos(it);
-    return `<div class="dbox dwide"><h3>${esc(it.name)} × ${it.qty}${(it.copies || 1) > 1 ? ` · print each ${it.copies}×` : ""}${ps.length && canPrint ? ` <button class="btn ghost sm" data-pp="${items.indexOf(it)}">Print layout</button>` : ""}</h3>${ps.length
+    return `<div class="dbox dwide"><h3>${esc(it.name)} × ${it.qty}${(it.copies || 1) > 1 ? ` · print each ${it.copies}×` : ""}${it.feature ? ` <span class="badge b-approved" title="The customer agreed to have this order featured on social media">OK to feature</span>` : ""}${ps.length && canPrint ? ` <button class="btn ghost sm" data-pp="${items.indexOf(it)}">Print layout</button>` : ""}</h3>${ps.length
       ? `<div class="dphotos">${ps.map((p, i) => { const g = it.photoFrom + i; return `<figure><img class="${it.print?.circle ? "round" : ""}" src="${esc(p)}" alt="Photo ${label(it, i)}"><figcaption>${label(it, i)}${o.originals?.[g] ? ` · <a href="${esc(o.originals[g])}" download>Original</a>` : ""}</figcaption></figure>`; }).join("")}</div>`
       : `<p style="color:var(--ink-2)">No photos for this item.</p>`}</div>`;
   };
@@ -1181,7 +1126,9 @@ async function printPreview(o, it) {
 /* ---------- boot: page templates set TT.view ---------- */
 const qs = new URLSearchParams(location.search);
 showCartCount();
-if (TT.view === "order") (async () => {
+if (ls("tt-open-cart")) { ls("tt-open-cart", ""); openDrawer(); } // Just added from the builder.
+if (TT.view === "product") loadCart().then(() => { PRODUCT_HTML = app.innerHTML; initProductPage(); });
+else if (TT.view === "order" && (qs.has("product") || qs.has("edit"))) (async () => { // Otherwise the Order page is the server-built grid.
   await loadCart();
   const key = qs.get("product") ?? "", saved = CART.find(it => it.id === qs.get("edit"));
   if (saved) {
@@ -1191,9 +1138,9 @@ if (TT.view === "order") (async () => {
     S.step = PRODUCTS[saved.product].per ? 1 : 0; // Straight to the photo preview.
     if (IT.photos.length < saved.photos.length) toast("Some photos couldn't be opened again. Please add them back.");
   } else if (Object.hasOwn(PRODUCTS, key)) {
-    if (CART.length >= MAX_ITEMS) { toast(`Your cart is full (${MAX_ITEMS} items). Check out first, then start a new order.`); return renderShop(); }
+    if (CART.length >= MAX_ITEMS) { toast(`Your cart is full (${MAX_ITEMS} items). Check out first, then start a new order.`); location.href = TT.urls.order; return; }
     IT = newItem(key);
-  } else return renderShop();
+  } else { location.href = TT.urls.order; return; } // Unknown product or cart item.
   render = renderBuilder; renderBuilder();
 })();
 else if (TT.view === "cart") loadCart().then(() => {

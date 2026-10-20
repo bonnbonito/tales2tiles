@@ -12,9 +12,11 @@
  * - text, textarea (new line = line break), html (limited HTML), url, email
  * - number (blank allowed), int
  * - select (options 'choices' => array( value => label )), checkbox ('1' or '')
+ * - gallery: several images, saved as comma-separated attachment IDs (e.g. "12,15,9")
  * - image (attachment ID; a key named img_{x} previews the bundled assets/img/{x})
  * - list: repeatable rows, saved as array( array( col0, col1, … ), … ).
- *   options: 'columns' => array( array( type, label ), … ) with column types text|html|int|number|color;
+ *   options: 'columns' => array( array( type, label ), … ) with column types text|html|int|number|color, or
+ *   select as array( 'select', label, default, array( 'choices' => array( value => label ) ) );
  *   'add' => button label. Rows with an empty first column are dropped.
  *
  * Read values with tales2tiles_field( $box, $key [, $post_id] ). Unsaved fields return their default.
@@ -145,7 +147,7 @@ add_action( 'add_meta_boxes', 'tales2tiles_add_field_box', 10, 2 );
 function tales2tiles_field_box_html( $post, $metabox ) {
 	$box = $metabox['args']['box'];
 	wp_nonce_field( 'tales2tiles_' . $box, 'tales2tiles_' . $box . '_nonce' );
-	echo '<style>.tt-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:8px;background:#fff}.tt-row label{display:flex;flex-direction:column;gap:2px}.tt-row .tt-wide{flex:1 1 100%}.tt-row-actions{margin-left:auto}.tt-image img{max-width:200px;height:auto;display:block;margin-bottom:8px}.tt-image img[src=""]{display:none}</style>';
+	echo '<style>.tt-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:8px;background:#fff}.tt-row label{display:flex;flex-direction:column;gap:2px}.tt-row .tt-wide{flex:1 1 100%}.tt-row-actions{margin-left:auto}.tt-image img{max-width:200px;height:auto;display:block;margin-bottom:8px}.tt-image img[src=""]{display:none}.tt-gallery-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tt-gallery-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:4px}</style>';
 	foreach ( call_user_func( tales2tiles_field_boxes()[ $box ]['sections'] ) as $section => $fields ) {
 		echo '<h3>' . esc_html( $section ) . '</h3><table class="form-table" role="presentation">';
 		foreach ( $fields as $key => $field ) {
@@ -184,6 +186,20 @@ function tales2tiles_field_input( $id, $name, $key, $field, $value ) {
 				esc_attr( $value ),
 				esc_html__( 'Choose image', 'tales2tiles' ),
 				$fallback ? esc_html__( 'Use theme default', 'tales2tiles' ) : esc_html__( 'Remove', 'tales2tiles' )
+			);
+			break;
+		case 'gallery':
+			echo '<div class="tt-gallery"><div class="tt-gallery-thumbs">';
+			foreach ( array_filter( array_map( 'absint', explode( ',', (string) $value ) ) ) as $image ) {
+				echo '<img src="' . esc_url( (string) wp_get_attachment_image_url( $image, 'thumbnail' ) ) . '" alt="">';
+			}
+			printf(
+				'</div><input type="hidden" id="%1$s" name="%2$s" value="%3$s"><button type="button" class="button tt-pick-gallery">%4$s</button> <button type="button" class="button-link tt-clear-gallery">%5$s</button></div>',
+				esc_attr( $id ),
+				esc_attr( $name ),
+				esc_attr( $value ),
+				esc_html__( 'Choose images', 'tales2tiles' ),
+				esc_html__( 'Clear', 'tales2tiles' )
 			);
 			break;
 		case 'list':
@@ -227,10 +243,17 @@ function tales2tiles_field_input( $id, $name, $key, $field, $value ) {
  */
 function tales2tiles_list_row( $name, $columns, $row ) {
 	echo '<div class="tt-row">';
-	foreach ( $columns as $c => list( $type, $label ) ) {
-		$col   = $name . '[' . $c . ']';
-		$value = $row[ $c ] ?? '';
-		if ( 'html' === $type ) {
+	foreach ( $columns as $c => $column ) {
+		list( $type, $label ) = $column;
+		$col                  = $name . '[' . $c . ']';
+		$value                = $row[ $c ] ?? ( 'select' === $type ? $column[2] : '' );
+		if ( 'select' === $type ) {
+			echo '<label>' . esc_html( $label ) . '<select name="' . esc_attr( $col ) . '">';
+			foreach ( $column[3]['choices'] as $choice => $choice_label ) {
+				echo '<option value="' . esc_attr( $choice ) . '"' . selected( $value, $choice, false ) . '>' . esc_html( $choice_label ) . '</option>';
+			}
+			echo '</select></label>';
+		} elseif ( 'html' === $type ) {
 			printf( '<label class="tt-wide">%1$s<textarea class="large-text" rows="3" name="%2$s">%3$s</textarea></label>', esc_html( $label ), esc_attr( $col ), esc_textarea( $value ) );
 		} elseif ( 'text' === $type ) {
 			printf( '<label class="tt-wide">%1$s<input type="text" class="large-text" name="%2$s" value="%3$s"></label>', esc_html( $label ), esc_attr( $col ), esc_attr( $value ) );
@@ -258,6 +281,8 @@ function tales2tiles_sanitize_field( $field, $value ) {
 	switch ( $field[0] ) {
 		case 'select':
 			return isset( $field[3]['choices'][ $value ] ) ? $value : (string) $field[2];
+		case 'gallery':
+			return implode( ',', array_filter( array_map( 'absint', explode( ',', $value ) ) ) );
 		case 'checkbox':
 			return '1' === $value ? '1' : '';
 		case 'image':
