@@ -71,6 +71,10 @@ $tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
 								<option value="other"><?php esc_html_e( 'Other amount…', 'tales2tiles' ); ?></option>
 							<?php endif; ?>
 						</select></label>
+					<?php if ( $tales2tiles_p['other'] ) : ?>
+						<label class="pdp-other" hidden><span><?php echo esc_html( sprintf( /* translators: 1: minimum, 2: maximum. */ __( 'Number of pieces (%1$d–%2$d)', 'tales2tiles' ), $tales2tiles_p['min'], $tales2tiles_p['max'] ) ); ?></span>
+							<input class="input" type="number" id="pdpOther" min="<?php echo (int) $tales2tiles_p['min']; ?>" max="<?php echo (int) $tales2tiles_p['max']; ?>" value="<?php echo (int) $tales2tiles_variants[0][0]; ?>" inputmode="numeric"></label>
+					<?php endif; ?>
 				<?php else : ?>
 					<input type="hidden" id="pdpQty" value="<?php echo (int) $tales2tiles_variants[0][0]; ?>">
 				<?php endif; ?>

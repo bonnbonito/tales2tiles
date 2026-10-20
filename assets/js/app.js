@@ -334,15 +334,22 @@ function startItem(k, qty, color, feature = false) {
 let PRODUCT_HTML = ""; // The server-built page, restored after "Add to cart".
 function initProductPage() {
   const k = TT.product, d = PRODUCTS[k]; if (!d) return;
-  const qty = $("#pdpQty"), color = $("#pdpColor"), consent = $("#pdpConsent");
+  const qty = $("#pdpQty"), other = $("#pdpOther"), color = $("#pdpColor"), consent = $("#pdpConsent");
+  // Pieces: the dropdown choice, or the typed number when "Other amount…" is picked (kept within min–max).
+  const pieces = () => qty.value === "other" ? clamp(parseInt(other.value, 10) || d.min, d.min, d.max) : +qty.value || d.min;
   const price = () => {
-    const q = +qty.value || d.min, unit = unitFor(k, productTotal(k) + q); // Price breaks count what's already in the cart.
+    const q = pieces(), unit = unitFor(k, productTotal(k) + q); // Price breaks count what's already in the cart.
     $("#pdpPrice").textContent = peso(unit * q);
     $("#pdpNote").textContent = `for ${q} ${q === 1 ? d.unitWord.replace(/s$/, "") : d.unitWord}`;
   };
-  qty.onchange = () => { if (qty.value === "other") location.href = `${TT.urls.order}?product=${encodeURIComponent(k)}`; else price(); };
+  qty.onchange = () => {
+    const isOther = qty.value === "other";
+    if (other) { other.closest("label").hidden = !isOther; if (isOther) other.focus(); }
+    price();
+  };
+  if (other) { other.oninput = price; other.onchange = () => { other.value = pieces(); price(); }; }
   if (color && d.art === "leather") { color.onchange = () => { $(".pdp-main").innerHTML = keepsakeArt("leather", color.value); }; } // Strap drawn in the chosen color.
-  $("#pdpGo").onclick = () => startItem(k, +qty.value || d.min, color ? color.value : null, !!consent?.checked);
+  $("#pdpGo").onclick = () => { if (other) other.value = pieces(); startItem(k, pieces(), color ? color.value : null, !!consent?.checked); };
   $$(".help[data-help]").forEach(b => b.onclick = () => toast(b.dataset.help)); // Phones have no hover tooltip.
   $$("[data-art]", app).forEach(el => { el.innerHTML = keepsakeArt(el.dataset.art); });
   color?.onchange?.();
