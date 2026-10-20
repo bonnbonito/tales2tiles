@@ -63,14 +63,31 @@ const trackOrder = id => api("track/" + encodeURIComponent(id)).catch(() => null
 $("#menuBtn")?.addEventListener("click", () => { const n = $("#nav"); n.classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", n.classList.contains("open")); });
 $$("#nav a").forEach(a => a.addEventListener("click", () => { $("#nav").classList.remove("open"); $("#menuBtn")?.setAttribute("aria-expanded", "false"); }));
 $$("[data-art]").forEach(el => { el.innerHTML = keepsakeArt(el.dataset.art); });
-// Full-size product photos (home cards, item builder).
+// Full-size product photos (product page, home cards, item builder): the photo grows out of the one clicked,
+// then click (or tap) to zoom in 2.5× at that point and move to look around; click again to zoom out.
 document.addEventListener("click", e => {
   const z = e.target.closest("[data-zoom]"); if (!z) return;
+  const from = z.getBoundingClientRect();
   const dlg = document.createElement("dialog"); dlg.className = "lightbox";
-  dlg.innerHTML = `<img src="${esc(z.dataset.zoom)}" alt=""><button class="close" aria-label="Close">×</button>`;
+  dlg.innerHTML = `<div class="lb-frame"><img src="${esc(z.dataset.zoom)}" alt="" draggable="false"></div><button class="close" aria-label="Close">×</button><p class="lb-hint">Click the photo to zoom</p>`;
   dlg.onclick = ev => { if (ev.target === dlg || ev.target.closest(".close")) dlg.close(); };
   dlg.onclose = () => dlg.remove();
   document.body.appendChild(dlg); dlg.showModal();
+  const frame = $(".lb-frame", dlg), img = $("img", frame);
+  const grow = () => {
+    const to = frame.getBoundingClientRect();
+    if (!to.width || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
+    frame.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${from.width / to.width})`, opacity: .4 }, { transform: "none", opacity: 1 }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+  };
+  if (img.complete) grow(); else img.onload = grow;
+  let zoomed = false;
+  const aim = ev => { // Zoom towards the pointer.
+    const r = frame.getBoundingClientRect();
+    img.style.transformOrigin = `${clamp((ev.clientX - r.left) / r.width, 0, 1) * 100}% ${clamp((ev.clientY - r.top) / r.height, 0, 1) * 100}%`;
+  };
+  frame.onclick = ev => { zoomed = !zoomed; aim(ev); frame.classList.toggle("zoomed", zoomed); $(".lb-hint", dlg).textContent = zoomed ? "Move to look around · click to zoom out" : "Click the photo to zoom"; };
+  frame.onpointermove = ev => { if (zoomed) aim(ev); };
 });
 
 

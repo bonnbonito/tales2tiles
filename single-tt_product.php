@@ -36,7 +36,7 @@ $tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
 	<div class="wrap pdp">
 		<div class="pdp-gallery">
 			<?php if ( $tales2tiles_p['photo'] ) : ?>
-				<button type="button" class="pdp-main" data-zoom="<?php echo esc_url( $tales2tiles_p['photo'] ); ?>" aria-label="<?php esc_attr_e( 'View full size', 'tales2tiles' ); ?>"><img src="<?php echo esc_url( $tales2tiles_p['photo'] ); ?>" alt="<?php echo esc_attr( $tales2tiles_p['name'] ); ?>" fetchpriority="high"></button>
+				<button type="button" class="pdp-main" data-zoom="<?php echo esc_url( $tales2tiles_p['photoFull'] ? $tales2tiles_p['photoFull'] : $tales2tiles_p['photo'] ); ?>" aria-label="<?php esc_attr_e( 'View full size', 'tales2tiles' ); ?>"><img src="<?php echo esc_url( $tales2tiles_p['photo'] ); ?>" alt="<?php echo esc_attr( $tales2tiles_p['name'] ); ?>" fetchpriority="high"></button>
 			<?php else : ?>
 				<div class="pdp-main art" data-art="<?php echo esc_attr( $tales2tiles_p['art'] ); ?>"></div>
 			<?php endif; ?>

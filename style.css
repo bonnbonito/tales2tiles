@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.5.1
+Version: 2.5.2
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -595,7 +595,12 @@ label.check{display:flex!important;gap:8px;align-items:center;color:var(--ink)!i
 button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .lightbox{border:0;padding:0;background:none;max-width:min(92vw,1000px);max-height:92vh;overflow:visible}
 .lightbox::backdrop{background:rgba(20,12,12,.82)}
-.lightbox img{display:block;max-width:100%;max-height:88vh;border-radius:14px}
+.lb-frame{overflow:hidden;border-radius:14px;cursor:zoom-in;line-height:0}
+.lb-frame img{display:block;max-width:100%;max-height:84vh;transition:transform .3s ease;user-select:none}
+.lb-frame.zoomed{cursor:zoom-out;touch-action:none}
+.lb-frame.zoomed img{transform:scale(2.5)}
+.lb-hint{margin:10px 0 0;text-align:center;color:#fff;opacity:.75;font-size:13.5px}
+@media (prefers-reduced-motion:reduce){.lb-frame img{transition:none}}
 .lightbox .close{position:absolute;top:-14px;right:-14px;width:38px;height:38px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);font-size:22px;cursor:pointer;box-shadow:var(--shadow)}
 
 /* ---------- Order flow like the old store: card → upload → preview → slide-in cart ---------- */

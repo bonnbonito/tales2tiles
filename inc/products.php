@@ -264,6 +264,7 @@ function tales2tiles_products() {
 			'group' => $f( 'group' ),
 			'blurb' => $f( 'blurb' ),
 			'photo' => $image ? (string) wp_get_attachment_image_url( $image, 'large' ) : ( $art ? '' : tales2tiles_img( 'logo' ) ),
+			'photoFull' => $image ? (string) wp_get_attachment_image_url( $image, 'full' ) : '', // For the zoom view.
 			'art'   => $art,
 			'min'   => max( 1, (int) $f( 'min' ) ),
 			'per'   => (int) $f( 'per' ),
