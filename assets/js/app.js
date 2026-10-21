@@ -211,6 +211,9 @@ function photoLabel(i, d, n) {
   if (d.sides) return `${d.group === "keepsakes" ? "Keychain" : "Piece"} ${Math.floor(i / 2) + 1} · ${i % 2 ? "back" : "front"}`;
   return `${d.per === 9 ? "Magnet" : "Photo"} ${i + 1} of ${n}`;
 }
+// A photo can fill several slots ("Set of 3" from 1 photo): the same object sits in IT.photos n times, kept together.
+const isFirst = (list, i) => list.findIndex(q => q.id === list[i].id) === i;
+const timesUsed = (list, id) => list.filter(q => q.id === id).length;
 function photoAspect(ph, d) { if (d.circle) return 1; const a = d.mm[0] / d.mm[1]; return d.orient && ph.crop.land ? 1 / a : a; }
 const mmPx = mm => Math.round(mm / 25.4 * 300);
 function outSize(ph, d) { let w = mmPx(d.mm[0]), h = mmPx(d.mm[1]); if (d.orient && ph.crop.land) [w, h] = [h, w]; return [w, h]; }
@@ -478,7 +481,7 @@ async function addPhotos(files, at = -1) {
   for (const f of list.slice(0, at < 0 ? list.length : 1)) {
     try {
       const r = await shrink(f), ph = { id: uid(), ...r, file: f, crop: freshCrop() };
-      if (at >= 0) IT.photos[at] = ph; else IT.photos.push(ph);
+      if (at >= 0) { const old = IT.photos[at].id; IT.photos = IT.photos.map(q => q.id === old ? ph : q); } else IT.photos.push(ph);
       drawTiles?.();
     } catch (e) { toast(`Couldn't open ${f.name}. Save it as JPG or PNG and try again.`); }
   }
@@ -561,19 +564,24 @@ function stepPreview(p) {
     $("#lowNote").hidden = !IT.photos.some(ph => lowRes(ph, d));
     const unit = unitFor(IT.product, productTotal(IT.product, CART.filter(it => it.id !== IT.id)) + IT.qty);
     $("#pvline").innerHTML = `${qtyText(IT)}: <b>${peso(unit * IT.qty)}</b>`;
-    grid.innerHTML = Array.from({ length: need }, (_, i) => {
-      const ph = IT.photos[i], label = photoLabel(i, d, need);
+    const full = IT.photos.length >= need, slots = IT.photos.map((_, i) => i).filter(i => d.sides || isFirst(IT.photos, i));
+    grid.innerHTML = [...slots, ...Array.from({ length: need - IT.photos.length }, (_, k) => IT.photos.length + k)].map(i => {
+      const ph = IT.photos[i], label = photoLabel(i, d, need), n = ph && !d.sides ? timesUsed(IT.photos, ph.id) : 1;
+      const qty = ph && !d.sides && need > 1 ? `<span class="pv-qty">Prints <button data-less="${i}" aria-label="One less of ${label}"${n < 2 ? " disabled" : ""}>−</button><b aria-label="Prints">${n}</b><button data-more="${i}" aria-label="One more of ${label}"${full ? " disabled" : ""}>+</button></span>` : "";
       return ph
         ? `<figure class="pv-tile"><div class="pv-mag ${d.circle ? "round" : ""}"><canvas></canvas>${lowRes(ph, d) ? `<span class="pv-low" title="About ${Math.round(photoDPI(ph, d))} dpi; 150 or more prints sharp">⚠ Low resolution</span>` : ""}</div>
-            <div class="pv-tools"><button data-del="${i}" aria-label="Remove ${label}" title="Remove">${TOOL.trash}</button><span></span><button data-rep="${i}" aria-label="Replace ${label}" title="Replace">${TOOL.swap}</button><button data-edit="${i}" aria-label="Edit ${label}" title="Crop, rotate, filters">${TOOL.edit}</button><button data-text="${i}" aria-label="Add text to ${label}" title="Add text">${TOOL.text}</button></div>
+            <div class="pv-tools"><button data-del="${i}" aria-label="Remove ${label}" title="Remove">${TOOL.trash}</button><span></span><button data-rep="${i}" aria-label="Replace ${label}" title="Replace">${TOOL.swap}</button><button data-edit="${i}" aria-label="Edit ${label}" title="Crop, rotate, filters">${TOOL.edit}</button><button data-text="${i}" aria-label="Add text to ${label}" title="Add text">${TOOL.text}</button></div>${qty}
             <figcaption>${label}</figcaption></figure>`
         : `<button class="pv-tile empty" data-add="${i}"><span>+</span>Add photo<small>${label}</small></button>`;
     }).join("");
-    $$(".pv-tile canvas", grid).forEach((cv, i) => { const ph = IT.photos[i], [w, h] = thumbBox(photoAspect(ph, d), 170); loadTextFonts([ph]).then(() => paint(cv, ph, w, h)); });
+    $$(".pv-tile canvas", grid).forEach((cv, k) => { const ph = IT.photos[slots[k]], [w, h] = thumbBox(photoAspect(ph, d), 170); loadTextFonts([ph]).then(() => paint(cv, ph, w, h)); });
   };
   grid.onclick = e => {
     const b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.del) { IT.photos.splice(+b.dataset.del, 1); drawTiles(); }
+    const at = +(b.dataset.del ?? b.dataset.less ?? b.dataset.more), id = IT.photos[at]?.id;
+    if (b.dataset.del) { IT.photos = d.sides ? IT.photos.filter((_, i) => i !== at) : IT.photos.filter(q => q.id !== id); drawTiles(); }
+    else if (b.dataset.more && IT.photos.length < need) { IT.photos.splice(at + timesUsed(IT.photos, id), 0, IT.photos[at]); drawTiles(); }
+    else if (b.dataset.less && timesUsed(IT.photos, id) > 1) { IT.photos.splice(at, 1); drawTiles(); }
     else if (b.dataset.rep) { const at = +b.dataset.rep; openUploader(files => addPhotos(files, at), false); }
     else if (b.dataset.add) openUploader(files => addPhotos(files));
     else if (b.dataset.edit || b.dataset.text) openEditor(+(b.dataset.edit || b.dataset.text), b.dataset.text ? "text" : "crop");
@@ -645,9 +653,9 @@ function stepAdjust(p, opts = {}) {
     W = avail; H = W / a; if (H > maxH) { H = maxH; W = H * a; }
     W = Math.round(W); H = Math.round(H);
   };
-  $("#strip").innerHTML = IT.photos.map((ph, i) => `<button data-i="${i}" aria-label="${photoLabel(i, d, need)}" role="listitem"><canvas class="${d.circle ? "round" : ""}"></canvas>${ph.seen ? '<span class="seen"></span>' : ""}</button>`).join("");
-  const thumbs = $$("#strip canvas");
-  const drawThumb = i => { const [w, h] = thumbBox(photoAspect(IT.photos[i], d), 58); paint(thumbs[i], IT.photos[i], w, h); };
+  $("#strip").innerHTML = IT.photos.map((ph, i) => d.sides || isFirst(IT.photos, i) ? `<button data-i="${i}" aria-label="${photoLabel(i, d, need)}" role="listitem"><canvas class="${d.circle ? "round" : ""}"></canvas>${ph.seen ? '<span class="seen"></span>' : ""}</button>` : "").join("");
+  const thumbs = {}; $$("#strip button").forEach(b => thumbs[b.dataset.i] = $("canvas", b));
+  const drawThumb = i => { if (!thumbs[i]) return; const [w, h] = thumbBox(photoAspect(IT.photos[i], d), 58); paint(thumbs[i], IT.photos[i], w, h); };
   IT.photos.forEach((_, i) => drawThumb(i));
   let raf = 0;
   const redraw = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
@@ -1215,7 +1223,8 @@ else if (TT.view === "order" && (qs.has("product") || qs.has("edit"))) (async ()
   const key = qs.get("product") ?? "", saved = CART.find(it => it.id === qs.get("edit"));
   if (saved) {
     app.innerHTML = `<div class="wrap empty-cart"><p><span class="spinner dark"></span> Loading your photos…</p></div>`;
-    const photos = await Promise.all(saved.photos.map(ph => shrink(ph.file).then(r => ({ ...ph, ...r })).catch(() => null)));
+    const open = {}; // Same id = same photo used several times: open it once and share it.
+    const photos = await Promise.all(saved.photos.map(ph => open[ph.id] ??= shrink(ph.file).then(r => ({ ...ph, ...r })).catch(() => null)));
     IT = { ...saved, active: 0, photos: photos.filter(Boolean) };
     S.step = PRODUCTS[saved.product].per ? 1 : 0; // Straight to the photo preview.
     if (IT.photos.length < saved.photos.length) toast("Some photos couldn't be opened again. Please add them back.");
