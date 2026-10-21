@@ -342,6 +342,9 @@ function tales2tiles_save_field_box( $post_id, $post ) {
 			}
 		}
 	}
-	update_post_meta( $post_id, tales2tiles_field_boxes()[ $box ]['meta'], $clean );
+	$meta = tales2tiles_field_boxes()[ $box ]['meta'];
+	// Values of fields no longer on screen (e.g. a product's print shape and size) are kept, not wiped.
+	$old  = get_post_meta( $post_id, $meta, true );
+	update_post_meta( $post_id, $meta, array_merge( is_array( $old ) ? $old : array(), $clean ) );
 }
 add_action( 'save_post', 'tales2tiles_save_field_box', 10, 2 );

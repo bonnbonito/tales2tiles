@@ -237,21 +237,6 @@ function tales2tiles_product_fields() {
 		__( 'Photos and printing', 'tales2tiles' ) => array(
 			'sides'  => array( 'checkbox', __( 'Front and back: 2 photos per item (e.g. keychains)', 'tales2tiles' ), '', array( 'help' => __( 'Customers add a front and a back photo for each piece, and the print layout pairs them.', 'tales2tiles' ) ) ),
 			'per'    => array( 'int', __( 'Photos per item', 'tales2tiles' ), '1', array( 'help' => __( '0 = no photos (e.g. an empty frame), 9 = a set of nine. Ignored when "Front and back" is on.', 'tales2tiles' ) ) ),
-			'shape'  => array(
-				'select',
-				__( 'Print shape', 'tales2tiles' ),
-				'rect',
-				array(
-					'choices' => array(
-						'rect'   => __( 'Rectangle', 'tales2tiles' ),
-						'circle' => __( 'Circle', 'tales2tiles' ),
-						'pin'    => __( 'Button pin (circle that wraps around the edge)', 'tales2tiles' ),
-					),
-				),
-			),
-			'width'  => array( 'number', __( 'Print width (mm)', 'tales2tiles' ), '63.5' ),
-			'height' => array( 'number', __( 'Print height (mm)', 'tales2tiles' ), '63.5', array( 'help' => __( 'For circles, use the same width and height.', 'tales2tiles' ) ) ),
-			'orient' => array( 'checkbox', __( 'Customers can turn photos landscape', 'tales2tiles' ), '' ),
 		),
 	);
 }
@@ -292,7 +277,7 @@ function tales2tiles_products() {
 			'per'   => (int) $f( 'per' ),
 			'mm'    => array( (float) $f( 'width' ) > 0 ? (float) $f( 'width' ) : 63.5, (float) $f( 'height' ) > 0 ? (float) $f( 'height' ) : 63.5 ),
 		);
-		if ( 'rect' !== $shape ) {
+		if ( 'circle' === $shape || 'pin' === $shape ) { // Shape and size are no longer on the edit screen; new products print as 63.5 mm squares.
 			$p['circle'] = true;
 		}
 		if ( 'pin' === $shape ) {
