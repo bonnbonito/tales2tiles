@@ -22,10 +22,7 @@ const ICON = {
   lock: '<svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="14" width="18" height="14" rx="3"/><path d="M11 14v-3a5 5 0 0 1 10 0v3M16 20v3"/></svg>',
   heart: '<svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M16 27S4 19.6 4 11.8A6 6 0 0 1 16 9a6 6 0 0 1 12 2.8C28 19.6 16 27 16 27z"/></svg>',
   truck: '<svg width="32" height="30" viewBox="0 0 34 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8h17v14H3zM20 13h6l4 5v4H20z"/><circle cx="9" cy="24" r="3" fill="var(--mint)"/><circle cx="25" cy="24" r="3" fill="var(--mint)"/></svg>',
-  rotL: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4v6h6"/><path d="M4.5 10A8 8 0 1 1 6 16.5"/></svg>',
-  flip: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7 3 12l5 5z"/><path d="m16 7 5 5-5 5z"/></svg>',
   camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
-  rotR: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 4v6h-6"/><path d="M19.5 10A8 8 0 1 0 18 16.5"/></svg>'
 };
 
 /* ---------- product art ---------- */
@@ -616,8 +613,6 @@ function stepAdjust(p, opts = {}) {
         <div class="adj-pane" data-pane="crop">
           ${d.orient ? `<div class="ctrl"><label>Orientation</label><div class="seg" id="orient"><button data-o="0">Portrait</button><button data-o="1">Landscape</button></div></div>` : ""}
           <div class="ctrl"><label for="zoom">Zoom</label><div class="zoomrow"><button class="iconbtn" id="zout" aria-label="Zoom out">−</button><input type="range" id="zoom" min="1" max="3" step="0.01"><button class="iconbtn" id="zin" aria-label="Zoom in">+</button></div></div>
-          ${slider("tilt", "Straighten", -15, 15, .5)}
-          <div class="ctrl"><label>Rotate and flip</label><div class="btnrow"><button class="iconbtn" id="rl" aria-label="Rotate left">${ICON.rotL}</button><button class="iconbtn" id="rr" aria-label="Rotate right">${ICON.rotR}</button><button class="iconbtn" id="flip" aria-label="Flip left to right">${ICON.flip}</button><button class="iconbtn" id="flipV" aria-label="Flip upside down"><span style="display:inline-flex;transform:rotate(90deg)">${ICON.flip}</span></button></div></div>
           <div class="ctrl"><label class="check"><input type="checkbox" id="fit"> Fit whole photo (no cropping)</label>
             <div class="swatches" id="bgs" hidden>${colors("bg", BG_COLORS)}<input type="color" id="bgc" aria-label="Custom background color"></div></div>
         </div>
@@ -665,7 +660,7 @@ function stepAdjust(p, opts = {}) {
   }); };
   const loadFont = t => document.fonts?.load(fontCSS(t, 40)).then(redraw).catch(() => {}); // Canvas only uses fonts that are loaded.
   const pressed = (el, on) => el?.setAttribute("aria-pressed", String(!!on));
-  const fmt = { tilt: v => `${v > 0 ? "+" : ""}${v}°`, b: v => `${v}%`, c: v => `${v}%`, s: v => `${v}%`, warm: v => v > 0 ? `+${v}` : `${v}`, tsize: v => `${v}`, top: v => `${v}%` };
+  const fmt = { b: v => `${v}%`, c: v => `${v}%`, s: v => `${v}%`, warm: v => v > 0 ? `+${v}` : `${v}`, tsize: v => `${v}`, top: v => `${v}%` };
   const syncOrient = () => $$("#orient button").forEach(b => pressed(b, !!crop().land === (b.dataset.o === "1")));
   const syncText = () => {
     const t = txt();
@@ -678,9 +673,8 @@ function stepAdjust(p, opts = {}) {
     $("#top").value = Math.round((t.op ?? 1) * 100); $("#topv").textContent = `${Math.round((t.op ?? 1) * 100)}%`;
   };
   const syncEdits = () => { // Put the current photo's edits into the controls.
-    const c = crop(), val = { tilt: c.tilt || 0, b: c.b ?? 100, c: c.c ?? 100, s: c.s ?? 100, warm: c.warm || 0 };
+    const c = crop(), val = { b: c.b ?? 100, c: c.c ?? 100, s: c.s ?? 100, warm: c.warm || 0 };
     Object.entries(val).forEach(([k, v]) => { const el = $("#" + k); if (el) { el.value = v; $(`#${k}v`).textContent = fmt[k](v); } });
-    pressed($("#flip"), c.flip); pressed($("#flipV"), c.flipV);
     $("#fit").checked = !!c.fit; $("#bgs").hidden = !c.fit; $$("[data-bg]").forEach(b => pressed(b, b.dataset.bg === (c.bg || "#ffffff"))); $("#bgc").value = c.bg || "#ffffff";
     $$(".look").forEach(b => { pressed(b, (c.look || "none") === b.dataset.look); $("img", b).src = cur().src; });
     syncText();
@@ -689,9 +683,7 @@ function stepAdjust(p, opts = {}) {
   showTab(tab);
   $$("#tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
   // Crop / adjust controls.
-  ["tilt", "b", "c", "s", "warm"].forEach(k => { const el = $("#" + k); if (el) el.oninput = () => { crop()[k] = +el.value; $(`#${k}v`).textContent = fmt[k](+el.value); redraw(); }; });
-  $("#flip").onclick = () => { crop().flip = !crop().flip; syncEdits(); redraw(); };
-  $("#flipV").onclick = () => { crop().flipV = !crop().flipV; syncEdits(); redraw(); };
+  ["b", "c", "s", "warm"].forEach(k => { const el = $("#" + k); if (el) el.oninput = () => { crop()[k] = +el.value; $(`#${k}v`).textContent = fmt[k](+el.value); redraw(); }; });
   $("#fit").onchange = e => { crop().fit = e.target.checked; crop().zoom = 1; zoom.value = 1; syncEdits(); redraw(); };
   $$("[data-bg]").forEach(b => b.onclick = () => { crop().bg = b.dataset.bg; syncEdits(); redraw(); });
   $("#bgc").oninput = e => { crop().bg = e.target.value; syncEdits(); redraw(); };
@@ -731,8 +723,6 @@ function stepAdjust(p, opts = {}) {
   zoom.oninput = () => { crop().zoom = +zoom.value; redraw(); };
   const setZ = dz => { crop().zoom = clamp(crop().zoom + dz, 1, 3); zoom.value = crop().zoom; redraw(); };
   $("#zin").onclick = () => setZ(.15); $("#zout").onclick = () => setZ(-.15);
-  $("#rl").onclick = () => { crop().rot -= 90; redraw(); };
-  $("#rr").onclick = () => { crop().rot += 90; redraw(); };
   $("#reset").onclick = () => { cur().crop = freshCrop(crop().land); ti = -1; zoom.value = 1; syncEdits(); redraw(); };
   $("#nextPhoto").onclick = () => select((IT.active + 1) % IT.photos.length);
   // Dragging: moves the photo, or on the Text tab the text under the finger (picked by tapping it).
