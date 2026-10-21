@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.5.18
+Version: 2.5.19
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -200,13 +200,13 @@ footer.site .brand-logo{height:58px}
 .pgroup-head{display:flex;align-items:baseline;gap:6px 16px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:10px}
 .pgroup-head h3{font-family:var(--serif);font-weight:600;font-size:30px;margin:0;line-height:1.1}
 .pgroup-head span{font-family:var(--script);font-size:23px;color:var(--rose-d)}
-.pgroups{display:grid;grid-template-columns:1fr 1fr;column-gap:36px}
+.pgroups{display:grid;grid-template-columns:1fr;column-gap:36px} /* each group on its own row */
 .pgroup.wide{grid-column:1/-1}
 .pgroup.wide .pimg{aspect-ratio:16/10}
 .pgrid2{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
-.pgroup.wide .pgrid2{grid-template-columns:repeat(3,1fr)}
-@media (max-width:900px){.pgroups{grid-template-columns:1fr}.pgroup.wide .pgrid2{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:600px){.pgrid2,.pgroup.wide .pgrid2{grid-template-columns:1fr}}
+.pgroup.wide .pgrid2,.pgroup-magnets .pgrid2{grid-template-columns:repeat(3,1fr)}
+@media (max-width:900px){.pgroup.wide .pgrid2,.pgroup-magnets .pgrid2{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.pgrid2,.pgroup.wide .pgrid2,.pgroup-magnets .pgrid2{grid-template-columns:1fr}.pgroup-frames .pgrid2{grid-template-columns:repeat(2,1fr);gap:12px}} /* frames stay 2 in a row */
 .pcard2{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
 .pimg{aspect-ratio:4/3;background:var(--blush);display:grid;place-items:center;overflow:hidden}
 .pimg.photo img{width:100%;height:100%;object-fit:cover;display:block}
