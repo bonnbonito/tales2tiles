@@ -21,6 +21,7 @@
  *
  * Read values with tales2tiles_field( $box, $key [, $post_id] ). Unsaved fields return their default.
  * Any field may set options 'help' (description under the input).
+ * Type 'focus' stores "x% y%" (CSS object-position) for the image field named in option 'image'.
  *
  * @package Tales2Tiles
  */
@@ -147,7 +148,7 @@ add_action( 'add_meta_boxes', 'tales2tiles_add_field_box', 10, 2 );
 function tales2tiles_field_box_html( $post, $metabox ) {
 	$box = $metabox['args']['box'];
 	wp_nonce_field( 'tales2tiles_' . $box, 'tales2tiles_' . $box . '_nonce' );
-	echo '<style>.tt-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:8px;background:#fff}.tt-row label{display:flex;flex-direction:column;gap:2px}.tt-row .tt-wide{flex:1 1 100%}.tt-row-actions{margin-left:auto}.tt-image img{max-width:200px;height:auto;display:block;margin-bottom:8px}.tt-image img[src=""]{display:none}.tt-gallery-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tt-gallery-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:4px}</style>';
+	echo '<style>.tt-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:8px;background:#fff}.tt-row label{display:flex;flex-direction:column;gap:2px}.tt-row .tt-wide{flex:1 1 100%}.tt-row-actions{margin-left:auto}.tt-image img{max-width:200px;height:auto;display:block;margin-bottom:8px}.tt-image img[src=""]{display:none}.tt-gallery-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tt-gallery-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:4px}.tt-focus{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}.tt-focus-pick{position:relative;display:inline-block;cursor:crosshair;line-height:0;touch-action:none;user-select:none}.tt-focus-pick img{max-width:320px;max-height:240px;border-radius:4px}.tt-focus-dot{position:absolute;width:18px;height:18px;margin:-11px 0 0 -11px;border:2px solid #fff;border-radius:50%;background:#2271b1;box-shadow:0 0 0 2px #2271b1,0 1px 4px rgba(0,0,0,.5);pointer-events:none}.tt-focus figure{margin:0;text-align:center;font-size:12px;color:#646970}.tt-focus-crop{overflow:hidden;border-radius:4px;background:#ddd;margin-bottom:4px}.tt-focus-crop img{width:100%;height:100%;object-fit:cover;display:block}.tt-focus-crop.wide{width:200px;aspect-ratio:16/10}.tt-focus-crop.square{width:125px;aspect-ratio:1}</style>';
 	foreach ( call_user_func( tales2tiles_field_boxes()[ $box ]['sections'] ) as $section => $fields ) {
 		echo '<h3>' . esc_html( $section ) . '</h3><table class="form-table" role="presentation">';
 		foreach ( $fields as $key => $field ) {
@@ -186,6 +187,18 @@ function tales2tiles_field_input( $id, $name, $key, $field, $value ) {
 				esc_attr( $value ),
 				esc_html__( 'Choose image', 'tales2tiles' ),
 				$fallback ? esc_html__( 'Use theme default', 'tales2tiles' ) : esc_html__( 'Remove', 'tales2tiles' )
+			);
+			break;
+		case 'focus': // Point of an image (option 'image' = that image field's key) that stays in view when the photo is cropped.
+			printf(
+				'<div class="tt-focus" data-image="%1$s"><div class="tt-focus-pick" title="%2$s"><img alt=""><span class="tt-focus-dot"></span></div><figure><div class="tt-focus-crop wide"><img alt=""></div>%3$s</figure><figure><div class="tt-focus-crop square"><img alt=""></div>%4$s</figure><input type="hidden" id="%5$s" name="%6$s" value="%7$s"></div>',
+				esc_attr( str_replace( $key, $field[3]['image'], $id ) ),
+				esc_attr__( 'Click or drag', 'tales2tiles' ),
+				esc_html__( 'Computer', 'tales2tiles' ),
+				esc_html__( 'Phone', 'tales2tiles' ),
+				esc_attr( $id ),
+				esc_attr( $name ),
+				esc_attr( $value )
 			);
 			break;
 		case 'gallery':
@@ -292,6 +305,8 @@ function tales2tiles_sanitize_field( $field, $value ) {
 			return is_numeric( $value ) ? (string) max( 0, round( (float) $value, 2 ) ) : '';
 		case 'color':
 			return (string) sanitize_hex_color( $value );
+		case 'focus':
+			return preg_match( '/^\d{1,3}(\.\d+)?% \d{1,3}(\.\d+)?%$/', $value ) ? $value : $field[2];
 		case 'textarea':
 			return sanitize_textarea_field( $value );
 		case 'html':

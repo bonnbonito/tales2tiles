@@ -1,5 +1,5 @@
 /**
- * Meta box controls for inc/fields.php: image pickers and repeatable rows.
+ * Meta box controls for inc/fields.php: image pickers, focus points and repeatable rows.
  * Row order on screen is the saved order.
  */
 let ttRowIndex = Date.now(); // Unique input names for new rows.
@@ -52,4 +52,36 @@ document.addEventListener( 'click', ( e ) => {
 	} else if ( row && button.matches( '.tt-up' ) && row.previousElementSibling ) {
 		row.after( row.previousElementSibling );
 	}
+} );
+
+// Focus point ('focus' field): click or drag on the photo; the previews crop it like the site does.
+document.querySelectorAll( '.tt-focus' ).forEach( ( box ) => {
+	const input = box.querySelector( 'input' );
+	const pick = box.querySelector( '.tt-focus-pick' );
+	const dot = box.querySelector( '.tt-focus-dot' );
+	const source = document.getElementById( box.dataset.image )?.closest( '.tt-image' )?.querySelector( 'img' );
+	const show = () => {
+		const [ x, y ] = input.value.split( ' ' );
+		dot.style.left = x;
+		dot.style.top = y;
+		box.querySelectorAll( '.tt-focus-crop img' ).forEach( ( img ) => ( img.style.objectPosition = input.value ) );
+	};
+	const sync = () => box.querySelectorAll( 'img' ).forEach( ( img ) => ( img.src = source?.src || '' ) );
+	const set = ( e ) => {
+		const r = pick.getBoundingClientRect();
+		const pct = ( v ) => Math.round( Math.min( 100, Math.max( 0, v ) ) ) + '%';
+		input.value = pct( ( ( e.clientX - r.left ) / r.width ) * 100 ) + ' ' + pct( ( ( e.clientY - r.top ) / r.height ) * 100 );
+		show();
+	};
+	pick.addEventListener( 'pointerdown', ( e ) => {
+		pick.setPointerCapture( e.pointerId );
+		set( e );
+		pick.onpointermove = set;
+	} );
+	pick.addEventListener( 'pointerup', () => ( pick.onpointermove = null ) );
+	if ( source ) {
+		new MutationObserver( sync ).observe( source, { attributes: true, attributeFilter: [ 'src' ] } ); // A new hero photo was chosen.
+	}
+	sync();
+	show();
 } );

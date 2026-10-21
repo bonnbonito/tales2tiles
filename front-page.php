@@ -37,7 +37,7 @@ get_header();
 		</div>
 		<div class="hero-photo">
 			<img src="<?php echo esc_url( tales2tiles_img( 'hero' ) ); ?>"
-				alt="<?php echo esc_attr( tales2tiles_home( 'hero_alt' ) ); ?>" fetchpriority="high">
+				alt="<?php echo esc_attr( tales2tiles_home( 'hero_alt' ) ); ?>" style="object-position:<?php echo esc_attr( tales2tiles_home( 'hero_pos' ) ); ?>" fetchpriority="high">
 		</div>
 	</section>
 

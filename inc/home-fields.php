@@ -35,6 +35,7 @@ function tales2tiles_home_fields() {
 			'perk2'       => array( 'textarea', __( 'Perk 2', 'tales2tiles' ), __( "Perfect for\ngifts & giveaways", 'tales2tiles' ) ),
 			'perk3'       => array( 'textarea', __( 'Perk 3', 'tales2tiles' ), __( "Made with\ncare and love", 'tales2tiles' ) ),
 			'img_hero'    => array( 'image', __( 'Hero photo', 'tales2tiles' ), '' ),
+			'hero_pos'    => array( 'focus', __( 'Hero photo position', 'tales2tiles' ), '50% 64%', array( 'image' => 'img_hero', 'help' => __( 'Click or drag on the photo to pick the part that must always stay in view. The previews show how the photo is cropped on a computer and on a phone.', 'tales2tiles' ) ) ),
 			'hero_alt'    => array( 'text', __( 'Hero photo description (alt text)', 'tales2tiles' ), __( 'Two magnetic frames, one white and one black, each holding nine photo magnets', 'tales2tiles' ) ),
 			'note1'       => array( 'text', __( 'Sticky note, line 1', 'tales2tiles' ), __( 'Little photos.', 'tales2tiles' ) ),
 			'note2'       => array( 'text', __( 'Sticky note, line 2', 'tales2tiles' ), __( 'Big memories.', 'tales2tiles' ) ),
