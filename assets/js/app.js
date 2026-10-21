@@ -539,7 +539,7 @@ function stepPreview(p) {
       </div>
       <aside class="pv-side">
         <ul class="pv-help">
-          <li>${TOOL.edit} Crop, rotate, filters and fit</li><li>${TOOL.text} Add text</li><li>${TOOL.trash} Remove a photo</li>${d.sides ? "" : `<li>${TOOL.copy} Duplicate, to design it differently</li>`}
+          <li>${TOOL.edit} Edit photo: crop, filters and fit</li><li>${TOOL.text} Add text</li>${d.sides ? "" : `<li>${TOOL.copy} Duplicate, to design it differently</li>`}<li>${TOOL.trash} Delete a photo</li>
         </ul>
         ${d.sides ? `<p class="hint">Photos go in pairs: front, then back of each piece.</p>` : ""}
         ${d.pin ? `<p class="hint">The dashed ring is the front of the pin. Anything outside it wraps around the edge.</p>` : ""}
@@ -563,7 +563,7 @@ function stepPreview(p) {
       const qty = ph && !d.sides && need > 1 ? `<span class="pv-qty">Prints <button data-less="${i}" aria-label="One less of ${label}"${n < 2 ? " disabled" : ""}>−</button><b aria-label="Prints">${n}</b><button data-more="${i}" aria-label="One more of ${label}"${full ? " disabled" : ""}>+</button></span>` : "";
       return ph
         ? `<figure class="pv-tile"><div class="pv-mag ${d.circle ? "round" : ""}"><canvas></canvas>${lowRes(ph, d) ? `<span class="pv-low" title="About ${Math.round(photoDPI(ph, d))} dpi; 150 or more prints sharp">⚠ Low resolution</span>` : ""}</div>
-            <div class="pv-tools"><button data-del="${i}" aria-label="Remove ${label}" title="Remove">${TOOL.trash}</button>${d.sides ? "" : `<button data-dup="${i}" aria-label="Duplicate ${label}" title="${full ? "The set is full. Remove a photo or lower its prints first." : "Duplicate, to design it differently"}"${full ? " disabled" : ""}>${TOOL.copy}</button>`}<button data-edit="${i}" aria-label="Edit ${label}" title="Crop, rotate, filters">${TOOL.edit}</button><button data-text="${i}" aria-label="Add text to ${label}" title="Add text">${TOOL.text}</button></div>${qty}
+            <div class="pv-tools"><button data-edit="${i}" aria-label="Edit ${label}" data-tip="Edit Photo">${TOOL.edit}</button><button data-text="${i}" aria-label="Add text to ${label}" data-tip="Add Text">${TOOL.text}</button>${d.sides ? "" : `<button data-dup="${i}" aria-label="Duplicate ${label}" data-tip="Duplicate"${full ? " disabled" : ""}>${TOOL.copy}</button>`}<button data-del="${i}" aria-label="Delete ${label}" data-tip="Delete">${TOOL.trash}</button></div>${qty}
             <figcaption>${label}</figcaption></figure>`
         : `<button class="pv-tile empty" data-add="${i}"><span>+</span>Add photo<small>${label}</small></button>`;
     }).join("");
