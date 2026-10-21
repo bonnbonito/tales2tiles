@@ -49,7 +49,7 @@ get_header();
 			</div>
 			<div class="pgroups">
 				<?php foreach ( $tales2tiles_config['groups'] as list( $tales2tiles_group, $tales2tiles_title, $tales2tiles_sub ) ) : ?>
-					<div class="pgroup pgroup-<?php echo esc_attr( $tales2tiles_group ); ?><?php echo 'keepsakes' === $tales2tiles_group ? ' wide' : ''; ?>">
+					<div class="pgroup<?php echo 'keepsakes' === $tales2tiles_group ? ' wide' : ''; ?>">
 						<div class="pgroup-head">
 							<h3><?php echo esc_html( $tales2tiles_title ); ?></h3>
 							<span><?php echo esc_html( $tales2tiles_sub ); ?></span>
