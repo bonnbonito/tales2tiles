@@ -47,7 +47,7 @@ function tierRange(p, i) { const t = p.tiers[i], n = p.tiers[i + 1]; return n ? 
 
 /* ---------- storage (WordPress REST API, see inc/orders.php) ---------- */
 async function api(path, opts = {}) {
-  const r = await fetch(TT.api + path, { credentials: "same-origin", ...opts, headers: { "X-WP-Nonce": TT.nonce, ...(opts.headers || {}) } });
+  const r = await fetch(TT.api + path, { credentials: "same-origin", cache: "no-store", ...opts, headers: { "X-WP-Nonce": TT.nonce, ...(opts.headers || {}) } });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.message || "Something went wrong. Please try again.");
   return data;

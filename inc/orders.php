@@ -120,6 +120,24 @@ function tales2tiles_register_routes() {
 add_action( 'rest_api_init', 'tales2tiles_register_routes' );
 
 /**
+ * Never cache the shop's API: order statuses, tracking and coupons change. Page caches (LiteSpeed Cache on Hostinger)
+ * otherwise serve an old answer, e.g. the dashboard keeps showing "Approved" after "Mark as in production".
+ *
+ * @param WP_HTTP_Response $response Response.
+ * @param WP_REST_Server   $server   Server.
+ * @param WP_REST_Request  $request  Request.
+ * @return WP_HTTP_Response
+ */
+function tales2tiles_rest_nocache( $response, $server, $request ) {
+	if ( 0 === strpos( $request->get_route(), '/tales2tiles/v1/' ) ) {
+		do_action( 'litespeed_control_set_nocache', 'tales2tiles order data' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- LiteSpeed Cache's own hook.
+		$response->header( 'Cache-Control', 'no-store, private' );
+	}
+	return $response;
+}
+add_filter( 'rest_post_dispatch', 'tales2tiles_rest_nocache', 10, 3 );
+
+/**
  * Customer-facing validation error.
  *
  * @param string $message Message shown to the customer.
