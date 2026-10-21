@@ -1059,7 +1059,7 @@ const FLOW = [["pending", "Order received", "We're checking your payment."], ["a
 async function renderTrack(pre) {
   const last = pre || ls("tt-last") || "";
   app.innerHTML = `<div class="wrap"><div class="track">
-    <div class="sec-head"><h2>Track your order</h2><p>Enter the order number from your confirmation screen, like TT-2026-0924-0001.</p></div>
+    <div class="sec-head"><h2>Track your order</h2><p>Enter the order number from your confirmation screen, like TT-2026-0924-483920.</p></div>
     <form id="tf"><input class="input" id="tid" placeholder="Order number" value="${esc(last)}" autocapitalize="characters" aria-label="Order number"><button class="btn">Track</button></form>
     <div id="tres"></div></div></div>`;
   const show = async id => {

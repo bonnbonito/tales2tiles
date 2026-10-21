@@ -321,16 +321,15 @@ function tales2tiles_rest_check_coupon( WP_REST_Request $request ) {
 }
 
 /**
- * Next order number. Atomic in MySQL, so simultaneous orders never share a number.
+ * New order number like TT-2026-1021-483920: date plus 6 random digits, so numbers don't reveal how many orders came before.
  *
- * @return int
+ * @return string
  */
-function tales2tiles_next_order_number() {
-	global $wpdb;
-	add_option( 'tales2tiles_order_counter', 0, '', false ); // No-op once it exists.
-	$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = LAST_INSERT_ID( option_value + 1 ) WHERE option_name = %s", 'tales2tiles_order_counter' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-	wp_cache_delete( 'tales2tiles_order_counter', 'options' );
-	return (int) $wpdb->get_var( 'SELECT LAST_INSERT_ID()' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+function tales2tiles_new_order_id() {
+	do {
+		$id = 'TT-' . wp_date( 'Y-md' ) . '-' . random_int( 100000, 999999 );
+	} while ( tales2tiles_find_order( $id ) ); // ponytail: check-then-insert; two orders drawing the same number in the same second is ~1 in 900,000.
+	return $id;
 }
 
 /**
@@ -454,7 +453,7 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 		return tales2tiles_error( __( 'One of your photos could not be read. Please try again.', 'tales2tiles' ) );
 	}
 
-	$order_id = 'TT-' . wp_date( 'Y-md' ) . '-' . sprintf( '%04d', tales2tiles_next_order_number() );
+	$order_id = tales2tiles_new_order_id();
 
 	// Random suffix keeps customer photos from being guessable by order number.
 	$uploads = wp_upload_dir();

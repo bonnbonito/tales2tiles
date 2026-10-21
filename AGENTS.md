@@ -30,7 +30,7 @@ Notes for AI agents and humans editing this theme.
 - Owner endpoints require `manage_options`; public `track/{id}` returns status only, no customer data.
 - Discount codes: Pages → Order → "Discount codes" (`coupons` list: code, % off, ₱ off, minimum). Server-only (`tales2tiles_coupon()`, never in `window.TT`); `GET coupon/{code}` is throttled to 20 per IP per hour; the order recomputes the discount (`tales2tiles_coupon_discount()`, same formula as app.js `couponDiscount()`).
 - Products, orders and the Pages → Order box (payment accounts) are `manage_options` only (CPT `capabilities`, box `cap`). Editors may edit the Home box only. Keep it that way.
-- Public `POST orders` is throttled to 10 per IP per hour (transient `tt_orders_<md5 ip>`). Order numbers come from `tales2tiles_next_order_number()` (atomic SQL), never `get_option() + 1`.
+- Public `POST orders` is throttled to 10 per IP per hour (transient `tt_orders_<md5 ip>`). Order numbers come from `tales2tiles_new_order_id()`: `TT-YYYY-MMDD-` + 6 random digits (not a counter, so they don't reveal order volume), retried if taken; older orders keep their 4-digit numbers, and `TALES2TILES_ID_REGEX` accepts both.
 - Anything admin-entered that app.js puts into `innerHTML` goes through `esc()`.
 - Product keys (post slugs `sq`, `rect`, …) are stored on orders — don't rename them. Orders also save `print` (mm/shape/sides) so print layouts survive product edits or deletion.
 - WordPress Coding Standards, `tales2tiles_` prefix, text domain `tales2tiles`, escape all output.
