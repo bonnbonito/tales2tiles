@@ -69,6 +69,27 @@ function tales2tiles_lock_product_keys() {
 	}
 }
 /**
+ * One time: products saved with 2 photos per item were front-and-back keychains; turn on their new "Front and back" setting.
+ */
+function tales2tiles_migrate_product_sides() {
+	foreach ( get_posts( array( 'post_type' => 'tt_product', 'post_status' => 'any', 'numberposts' => -1 ) ) as $post ) {
+		$meta = get_post_meta( $post->ID, '_tt_product', true );
+		if ( is_array( $meta ) && ! isset( $meta['sides'] ) && '2' === (string) ( $meta['per'] ?? '' ) ) {
+			$meta['sides'] = '1';
+			update_post_meta( $post->ID, '_tt_product', $meta );
+		}
+	}
+}
+add_action(
+	'init',
+	static function () {
+		if ( '1' !== get_option( 'tales2tiles_sides_done' ) ) { // Runs on the first page load after this update, not just in wp-admin.
+			tales2tiles_migrate_product_sides();
+			update_option( 'tales2tiles_sides_done', '1' );
+		}
+	}
+);
+/**
  * One time: give the starting products readable addresses (e.g. /products/2-5-x-2-5-photo-magnet/)
  * instead of their short keys. Keys are locked first, so orders and old links keep working.
  */
@@ -214,7 +235,8 @@ function tales2tiles_product_fields() {
 			),
 		),
 		__( 'Photos and printing', 'tales2tiles' ) => array(
-			'per'    => array( 'int', __( 'Photos per item', 'tales2tiles' ), '1', array( 'help' => __( '0 = no photos (e.g. an empty frame), 2 = front and back, 9 = a set of nine.', 'tales2tiles' ) ) ),
+			'sides'  => array( 'checkbox', __( 'Front and back: 2 photos per item (e.g. keychains)', 'tales2tiles' ), '', array( 'help' => __( 'Customers add a front and a back photo for each piece, and the print layout pairs them.', 'tales2tiles' ) ) ),
+			'per'    => array( 'int', __( 'Photos per item', 'tales2tiles' ), '1', array( 'help' => __( '0 = no photos (e.g. an empty frame), 9 = a set of nine. Ignored when "Front and back" is on.', 'tales2tiles' ) ) ),
 			'shape'  => array(
 				'select',
 				__( 'Print shape', 'tales2tiles' ),
@@ -279,8 +301,9 @@ function tales2tiles_products() {
 		if ( '1' === $f( 'orient' ) ) {
 			$p['orient'] = true;
 		}
-		if ( 2 === $p['per'] ) {
+		if ( '1' === $f( 'sides' ) ) {
 			$p['sides'] = true;
+			$p['per']   = 2;
 		}
 
 		$tiers = array_map( static fn( $t ) => array( max( 1, (int) $t[0] ), (float) $t[1] ), (array) $f( 'tiers' ) );
@@ -388,6 +411,7 @@ function tales2tiles_seed_products() {
 				'colorLabel' => $p['colorLabel'] ?? __( 'Color', 'tales2tiles' ),
 				'colors'     => array_map( static fn( $c ) => array( $c, $swatch[ $c ] ), $p['colors'] ?? array() ),
 				'per'        => (string) $p['per'],
+				'sides'      => 2 === $p['per'] ? '1' : '',
 				'shape'      => empty( $p['circle'] ) ? 'rect' : ( empty( $p['pin'] ) ? 'circle' : 'pin' ),
 				'width'      => (string) ( $p['mm'][0] ?? 63.5 ),
 				'height'     => (string) ( $p['mm'][1] ?? 63.5 ),
