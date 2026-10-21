@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.5.11
+Version: 2.5.12
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -625,7 +625,8 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .pv-tools{display:flex;gap:4px;width:100%}
 .pv-tools span{flex:1}
 .pv-tools button{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer}
-.pv-tools button:hover{border-color:var(--rose);color:var(--rose-d)}
+.pv-tools button:disabled{opacity:.35;cursor:default}
+.pv-tools button:hover:not(:disabled){border-color:var(--rose);color:var(--rose-d)}
 .pv-qty{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
 .pv-qty b{min-width:1.4em;text-align:center;color:var(--ink);font-size:15px}
 .pv-qty button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;line-height:1;cursor:pointer}
