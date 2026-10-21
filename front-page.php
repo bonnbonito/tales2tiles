@@ -16,22 +16,24 @@ get_header();
 <main id="app">
 	<section class="hero">
 		<div class="hero-copy">
-			<h1><?php echo esc_html( tales2tiles_home( 'hero_title' ) ); ?></h1>
-			<p class="lede"><?php echo nl2br( esc_html( tales2tiles_home( 'hero_lede' ) ) ); ?></p>
-			<a class="btn big"
-				href="<?php echo esc_url( $tales2tiles_order ); ?>"><?php echo esc_html( tales2tiles_home( 'hero_button' ) ); ?>
-				<?php echo tales2tiles_icon( 'arrowR' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></a>
-			<ul class="perk-row">
-				<li>
-					<?php echo tales2tiles_icon( 'heart' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo nl2br( esc_html( tales2tiles_home( 'perk1' ) ) ); ?></span>
-				</li>
-				<li>
-					<?php echo tales2tiles_icon( 'gift' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo nl2br( esc_html( tales2tiles_home( 'perk2' ) ) ); ?></span>
-				</li>
-				<li>
-					<?php echo tales2tiles_icon( 'star' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo nl2br( esc_html( tales2tiles_home( 'perk3' ) ) ); ?></span>
-				</li>
-			</ul>
+			<div class="hero-container">
+				<h1><?php echo esc_html( tales2tiles_home( 'hero_title' ) ); ?></h1>
+				<p class="lede"><?php echo nl2br( esc_html( tales2tiles_home( 'hero_lede' ) ) ); ?></p>
+				<a class="btn big"
+					href="<?php echo esc_url( $tales2tiles_order ); ?>"><?php echo esc_html( tales2tiles_home( 'hero_button' ) ); ?>
+					<?php echo tales2tiles_icon( 'arrowR' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></a>
+				<ul class="perk-row">
+					<li>
+						<?php echo tales2tiles_icon( 'heart' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo nl2br( esc_html( tales2tiles_home( 'perk1' ) ) ); ?></span>
+					</li>
+					<li>
+						<?php echo tales2tiles_icon( 'gift' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo nl2br( esc_html( tales2tiles_home( 'perk2' ) ) ); ?></span>
+					</li>
+					<li>
+						<?php echo tales2tiles_icon( 'star' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo nl2br( esc_html( tales2tiles_home( 'perk3' ) ) ); ?></span>
+					</li>
+				</ul>
+			</div>
 		</div>
 		<div class="hero-photo">
 			<img src="<?php echo esc_url( tales2tiles_img( 'hero' ) ); ?>"
