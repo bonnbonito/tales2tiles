@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.5.14
+Version: 2.5.15
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -622,8 +622,7 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .pv-mag{position:relative;display:grid;place-items:center;padding:10px;background:var(--fridge);border-radius:12px;width:100%}
 .pv-mag canvas{display:block;max-width:100%;height:auto!important;box-shadow:0 2px 3px rgba(0,0,0,.22),0 10px 18px rgba(0,0,0,.18);border-radius:3px}
 .pv-mag.round canvas{border-radius:50%}
-.pv-tools{display:flex;gap:4px;width:100%}
-.pv-tools span{flex:1}
+.pv-tools{display:flex;gap:4px;width:100%;justify-content:center}
 .pv-tools button{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer}
 .pv-tools button:disabled{opacity:.35;cursor:default}
 .pv-tools button:hover:not(:disabled){border-color:var(--rose);color:var(--rose-d)}
