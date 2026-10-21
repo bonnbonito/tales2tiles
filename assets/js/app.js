@@ -468,20 +468,16 @@ async function saveItem() {
 }
 window.addEventListener("beforeunload", e => { if (IT && IT.photos.length) { e.preventDefault(); e.returnValue = ""; } });
 
-/* Add picked files to the item (optionally replacing photo `at`), keeping the original files for printing. */
-async function addPhotos(files, at = -1) {
-  const need = photosNeeded();
+/* Add picked files to the item, keeping the original files for printing. */
+async function addPhotos(files) {
+  const need = photosNeeded(), room = need - IT.photos.length;
   const list = [...files].filter(f => /^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name));
-  if (at < 0) {
-    const room = need - IT.photos.length;
-    if (room <= 0) return toast(`This item already has ${need} photo${need > 1 ? "s" : ""}. Remove one to swap it.`);
-    if (list.length > room) toast(`Added the first ${room}. This item needs ${need}.`);
-    list.splice(room);
-  }
-  for (const f of list.slice(0, at < 0 ? list.length : 1)) {
+  if (room <= 0) return toast(`This item already has ${need} photo${need > 1 ? "s" : ""}. Remove one to swap it.`);
+  if (list.length > room) toast(`Added the first ${room}. This item needs ${need}.`);
+  for (const f of list.slice(0, room)) {
     try {
-      const r = await shrink(f), ph = { id: uid(), ...r, file: f, crop: freshCrop() };
-      if (at >= 0) { const old = IT.photos[at].id; IT.photos = IT.photos.map(q => q.id === old ? ph : q); } else IT.photos.push(ph);
+      const r = await shrink(f);
+      IT.photos.push({ id: uid(), ...r, file: f, crop: freshCrop() });
       drawTiles?.();
     } catch (e) { toast(`Couldn't open ${f.name}. Save it as JPG or PNG and try again.`); }
   }
@@ -530,7 +526,6 @@ function stepOptions(p) {
 /* Step — product preview: every photo as a magnet, each with remove / replace / edit / text (like the old store). */
 const TOOL = {
   trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
-  swap: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>',
   edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
   text: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>',
   copy: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
@@ -547,7 +542,7 @@ function stepPreview(p) {
       </div>
       <aside class="pv-side">
         <ul class="pv-help">
-          <li>${TOOL.edit} Crop, rotate, filters and fit</li><li>${TOOL.text} Add text</li><li>${TOOL.swap} Replace a photo</li><li>${TOOL.trash} Remove a photo</li>${d.sides ? "" : `<li>${TOOL.copy} Duplicate, to design it differently</li>`}
+          <li>${TOOL.edit} Crop, rotate, filters and fit</li><li>${TOOL.text} Add text</li><li>${TOOL.trash} Remove a photo</li>${d.sides ? "" : `<li>${TOOL.copy} Duplicate, to design it differently</li>`}
         </ul>
         ${d.sides ? `<p class="hint">Photos go in pairs: front, then back of each piece.</p>` : ""}
         ${d.pin ? `<p class="hint">The dashed ring is the front of the pin. Anything outside it wraps around the edge.</p>` : ""}
@@ -571,7 +566,7 @@ function stepPreview(p) {
       const qty = ph && !d.sides && need > 1 ? `<span class="pv-qty">Prints <button data-less="${i}" aria-label="One less of ${label}"${n < 2 ? " disabled" : ""}>−</button><b aria-label="Prints">${n}</b><button data-more="${i}" aria-label="One more of ${label}"${full ? " disabled" : ""}>+</button></span>` : "";
       return ph
         ? `<figure class="pv-tile"><div class="pv-mag ${d.circle ? "round" : ""}"><canvas></canvas>${lowRes(ph, d) ? `<span class="pv-low" title="About ${Math.round(photoDPI(ph, d))} dpi; 150 or more prints sharp">⚠ Low resolution</span>` : ""}</div>
-            <div class="pv-tools"><button data-del="${i}" aria-label="Remove ${label}" title="Remove">${TOOL.trash}</button>${d.sides ? "" : `<button data-dup="${i}" aria-label="Duplicate ${label}" title="${full ? "The set is full. Remove a photo or lower its prints first." : "Duplicate, to design it differently"}"${full ? " disabled" : ""}>${TOOL.copy}</button>`}<span></span><button data-rep="${i}" aria-label="Replace ${label}" title="Replace">${TOOL.swap}</button><button data-edit="${i}" aria-label="Edit ${label}" title="Crop, rotate, filters">${TOOL.edit}</button><button data-text="${i}" aria-label="Add text to ${label}" title="Add text">${TOOL.text}</button></div>${qty}
+            <div class="pv-tools"><button data-del="${i}" aria-label="Remove ${label}" title="Remove">${TOOL.trash}</button>${d.sides ? "" : `<button data-dup="${i}" aria-label="Duplicate ${label}" title="${full ? "The set is full. Remove a photo or lower its prints first." : "Duplicate, to design it differently"}"${full ? " disabled" : ""}>${TOOL.copy}</button>`}<span></span><button data-edit="${i}" aria-label="Edit ${label}" title="Crop, rotate, filters">${TOOL.edit}</button><button data-text="${i}" aria-label="Add text to ${label}" title="Add text">${TOOL.text}</button></div>${qty}
             <figcaption>${label}</figcaption></figure>`
         : `<button class="pv-tile empty" data-add="${i}"><span>+</span>Add photo<small>${label}</small></button>`;
     }).join("");
@@ -587,7 +582,6 @@ function stepPreview(p) {
     }
     else if (b.dataset.more && IT.photos.length < need) { IT.photos.splice(at + timesUsed(IT.photos, id), 0, IT.photos[at]); drawTiles(); }
     else if (b.dataset.less && timesUsed(IT.photos, id) > 1) { IT.photos.splice(at, 1); drawTiles(); }
-    else if (b.dataset.rep) { const at = +b.dataset.rep; openUploader(files => addPhotos(files, at), false); }
     else if (b.dataset.add) openUploader(files => addPhotos(files));
     else if (b.dataset.edit || b.dataset.text) openEditor(+(b.dataset.edit || b.dataset.text), b.dataset.text ? "text" : "crop");
   };
