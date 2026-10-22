@@ -251,24 +251,38 @@ function tales2tiles_drive_upload_file( $path, $name, $parent ) {
 	if ( false === $bytes ) {
 		return new WP_Error( 'tales2tiles_drive', __( 'Could not read the file on the website.', 'tales2tiles' ) );
 	}
-	$boundary = 'tt-' . wp_generate_password( 24, false );
-	$type     = wp_check_filetype( $name )['type'] ? wp_check_filetype( $name )['type'] : 'application/octet-stream';
-	$body     = "--{$boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
-		. wp_json_encode(
-			array(
-				'name'    => $name,
-				'parents' => array( $parent ),
-			)
+	// Resumable upload (start a session, then PUT the bytes): multipart uploads are limited to 5 MB, and phone originals are often bigger.
+	$type  = wp_check_filetype( $name )['type'] ? wp_check_filetype( $name )['type'] : 'application/octet-stream';
+	$start = tales2tiles_drive_request(
+		'POST',
+		'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id',
+		array(
+			'headers' => array(
+				'Content-Type'            => 'application/json; charset=UTF-8',
+				'X-Upload-Content-Type'   => $type,
+				'X-Upload-Content-Length' => (string) strlen( $bytes ),
+			),
+			'body'    => wp_json_encode(
+				array(
+					'name'    => $name,
+					'parents' => array( $parent ),
+				)
+			),
 		)
-		. "\r\n--{$boundary}\r\nContent-Type: {$type}\r\n\r\n{$bytes}\r\n--{$boundary}--";
-	$data     = tales2tiles_drive_json(
+	);
+	$session = is_wp_error( $start ) ? '' : wp_remote_retrieve_header( $start, 'location' );
+	if ( ! $session ) {
+		$error = tales2tiles_drive_json( $start );
+		return is_wp_error( $error ) ? $error : new WP_Error( 'tales2tiles_drive', __( 'Google Drive did not start the upload.', 'tales2tiles' ) );
+	}
+	$data = tales2tiles_drive_json(
 		tales2tiles_drive_request(
-			'POST',
-			'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+			'PUT',
+			$session,
 			array(
-				'timeout' => 120,
-				'headers' => array( 'Content-Type' => 'multipart/related; boundary=' . $boundary ),
-				'body'    => $body,
+				'timeout' => 300,
+				'headers' => array( 'Content-Type' => $type ),
+				'body'    => $bytes,
 			)
 		)
 	);
@@ -451,7 +465,7 @@ add_filter(
 		$local = tales2tiles_drive_local_files( $post->ID );
 		$nonce = wp_create_nonce( 'wp_rest' );
 		$url   = static function ( $url ) use ( $order, $state, $local, $nonce ) {
-			$name = basename( $url );
+			$name = basename( (string) strtok( $url, '?' ) ); // strtok: older status changes saved these proxy links (with an expired _wpnonce) into the order.
 			if ( empty( $state['files'][ $name ] ) || file_exists( $local[ $name ] ?? '' ) ) {
 				return $url;
 			}

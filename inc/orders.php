@@ -675,14 +675,14 @@ function tales2tiles_rest_update_order( WP_REST_Request $request ) {
 	if ( ! in_array( $status, TALES2TILES_STATUSES, true ) ) {
 		return tales2tiles_error( __( 'Unknown status.', 'tales2tiles' ) );
 	}
-	$order              = tales2tiles_order_data( $post );
+	$order              = (array) get_post_meta( $post->ID, '_tt_order', true ); // The stored order, not tales2tiles_order_data(): that one has display-only links (Drive) that must not be saved.
 	$order['status']    = $status;
 	$order['history'][] = array(
 		'status' => $status,
 		'at'     => time() * 1000,
 	);
 	update_post_meta( $post->ID, '_tt_order', $order );
-	return rest_ensure_response( $order );
+	return rest_ensure_response( tales2tiles_order_data( $post ) );
 }
 
 /**
