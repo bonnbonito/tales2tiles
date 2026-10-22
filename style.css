@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.6.1
+Version: 2.6.2
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -818,3 +818,7 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .upc.is-failed .upc-bar span{background:var(--warn)}
 @media (max-width:600px){.upc{padding:22px 18px}.upc-head{gap:12px}.upc-icon{width:52px;height:52px}.upc-t{width:48px;height:48px}}
 @media (prefers-reduced-motion:reduce){.upc-icon,.upc-t.busy,.upc-bar span::after{animation:none}}
+/* Checkout step 2: "Remember my details" */
+.check.remember{align-items:flex-start!important;margin-top:4px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--blush) 60%,transparent)}
+.check.remember input{margin-top:3px;accent-color:var(--rose)}
+.check.remember small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}

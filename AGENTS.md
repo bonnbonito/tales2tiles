@@ -20,7 +20,7 @@ Notes for AI agents and humans editing this theme.
   - Items have `copies`: the same set printed again. Pieces = qty × copies (prices, minimums, print layout repeats the set); photos = per × qty. Home "Order this" links go to the product page.
   - Cart lives in the browser's IndexedDB (`tt-cart`, store `items`, `cartStore`), photos stored as the original `File`s with crop data; header badge count in localStorage `tt-cart-count`.
   - Photo editor (`stepAdjust`, tabs Crop / Filters / Adjust / Text). All edits live on `photo.crop` and are drawn by `drawCrop()`, which makes previews, cart thumbnails and the 300 dpi print files, so prints match the preview: pan/zoom, "fit whole photo" on a background colour, filter presets (`LOOKS`), brightness/contrast/saturation (canvas `filter`; hidden where unsupported), warmth (soft-light tint), text layers (`FONTS`, drawn by `drawTexts`; editor fonts are enqueued only on order/cart pages and `loadTextFonts()` runs before printing).
-  - `/cart/`: cart + checkout (`renderCheckout`: cart → details → payment → receipt → review), discount code box (`COUPON`, localStorage `tt-coupon`). Print photos are cropped from the full-resolution files at submit.
+  - `/cart/`: cart + checkout (`renderCheckout`: cart → details → payment → receipt → review; details has "Remember my details" (`S.remember`, on by default): contact + address, never the note, saved in localStorage `tt-details` on Next and pre-filled next time), discount code box (`COUPON`, localStorage `tt-coupon`). Print photos are cropped from the full-resolution files at submit.
   - Tracking, owner dashboard (status changes, per-item A4 print layout).
 - `style.css` — theme header + all CSS (tokens on `:root`, dark mode supported).
 

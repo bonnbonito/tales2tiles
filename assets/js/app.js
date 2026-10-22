@@ -14,6 +14,8 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const uid = () => Math.random().toString(36).slice(2, 10);
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2800); }
+/* Contact and address saved by "Remember my details" (checkout step 2). Only in this browser; never the order note. */
+function savedDetails() { try { return JSON.parse(ls("tt-details") || "{}") || {}; } catch (e) { return {}; } }
 function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast("Copied " + text); } catch (e) { toast(text); } }
 const ICON = {
@@ -335,7 +337,8 @@ function thumbBox(a, m) { return a >= 1 ? [m, Math.round(m / a)] : [Math.round(m
 /* ---------- shared wizard frame (one wizard per page: builder on /order/, checkout on /cart/) ---------- */
 const S = {
   step: 0,
-  d: { name: "", phone: "", email: "", address: "", city: "", province: "", postal: "", notes: ls("tt-note") || "" }, // notes: also typed in the slide-in cart
+  d: { name: "", phone: "", email: "", address: "", city: "", province: "", postal: "", ...savedDetails(), notes: ls("tt-note") || "" }, // notes: also typed in the slide-in cart
+  remember: true, // "Remember my details": contact + address kept in this browser (localStorage tt-details) for next time.
   receipt: null, payMethod: "GCash", payRef: "", upload: null, // upload: { token, sig } once checkout step 4 sent the photos to Drive.
   hq: true // Also send the untouched original files after the order (uploadOriginals).
 };
@@ -898,18 +901,22 @@ const FIELDS = [
 ];
 function stepDetails(p) {
   const f = ([k, l, t, ac, msg], cls = "") => `<div class="field ${cls}" data-f="${k}"><label for="f-${k}">${l}</label><input id="f-${k}" type="${t}" autocomplete="${ac}" value="${esc(S.d[k])}" ${k === "postal" || k === "phone" ? 'inputmode="numeric"' : ""}><div class="msg">${msg}</div></div>`;
-  p.innerHTML = `<h2>Where should we send it?</h2><p class="sub">${shipping() == null ? "We use your address to work out the shipping fee." : "We'll text you when your order ships."}</p>
+  const back = !!savedDetails().name;
+  p.innerHTML = `<h2>${back ? `Welcome back${S.d.name ? ", " + esc(S.d.name.split(" ")[0]) : ""}!` : "Where should we send it?"}</h2><p class="sub">${back ? "We filled in your details from last time. Just check they're still right." : shipping() == null ? "We use your address to work out the shipping fee." : "We'll text you when your order ships."}</p>
     <div class="form">
       <h3>Contact</h3>${f(FIELDS[0], "full")}${f(FIELDS[1])}${f(FIELDS[2])}
       <h3>Shipping address</h3>${f(FIELDS[3], "full")}${f(FIELDS[4])}${f(FIELDS[5])}${f(FIELDS[6])}
       <div class="field full"><label for="f-notes">Notes for us (optional)</label><textarea id="f-notes" placeholder="Landmarks, gift message, anything we should know">${esc(S.d.notes)}</textarea></div>
+      <label class="check remember full"><input type="checkbox" id="f-remember"${S.remember ? " checked" : ""}> <span>Remember my details for next time<small>Saved on this device only. Untick to forget them.</small></span></label>
     </div>${navHTML()}`;
+  $("#f-remember").onchange = e => { S.remember = e.target.checked; if (!S.remember) ls("tt-details", ""); };
   FIELDS.forEach(([k]) => $("#f-" + k).addEventListener("input", e => { S.d[k] = e.target.value; e.target.closest(".field").classList.remove("err"); }));
   $("#f-notes").oninput = e => { S.d.notes = e.target.value; ls("tt-note", e.target.value); };
   bindNav(() => {
     let first = null;
     FIELDS.forEach(([k, , , , , ok]) => { const bad = !ok(S.d[k]); $(`[data-f="${k}"]`).classList.toggle("err", bad); if (bad && !first) first = k; });
     if (first) { $("#f-" + first).focus(); return "Check the highlighted fields."; }
+    ls("tt-details", S.remember ? JSON.stringify(Object.fromEntries(FIELDS.map(([k]) => [k, S.d[k]]))) : "");
     return "";
   });
 }
