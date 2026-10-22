@@ -13,6 +13,8 @@
  *   them from Drive through an owner-only REST route (same origin, so print layouts still work).
  * - Full-quality originals arrive after the order (inc/orders.php); each one re-queues the job,
  *   which only copies files not yet in Drive.
+ * - Direct uploads (checkout step 4): the browser PUTs print files and originals straight into a
+ *   temporary Drive folder through one-file Google upload links; the order then claims the folder.
  *
  * Settings: option `tales2tiles_drive`. Access token: transient `tales2tiles_drive_access`.
  *
@@ -450,6 +452,238 @@ function tales2tiles_drive_queue_pending() {
 		tales2tiles_drive_queue( $post_id, $i * MINUTE_IN_SECONDS );
 	}
 }
+
+/* ---------- Direct uploads: the customer's browser sends photos straight to Drive (checkout step 4) ---------- */
+
+// Files a direct upload may contain: print files (photo-001.jpg …) and full-quality originals.
+const TALES2TILES_DIRECT_NAME = '/^(photo|original)-(\d{3})\.(jpg|png|webp|heic)$/';
+
+/**
+ * POST uploads {count} — start a direct upload: a temporary Drive folder and a secret token.
+ * Returns {drive:false} when Drive can't be used, and checkout falls back to uploading through the website.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function tales2tiles_rest_direct_start( WP_REST_Request $request ) {
+	if ( ! tales2tiles_drive_connected() ) {
+		return rest_ensure_response( array( 'drive' => false ) );
+	}
+	$throttle = 'tt_uploads_' . md5( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- hashed, never output.
+	$recent   = (int) get_transient( $throttle );
+	if ( $recent >= 10 ) {
+		return new WP_Error( 'tales2tiles_busy', __( 'Too many uploads from your connection. Please try again in an hour or message us.', 'tales2tiles' ), array( 'status' => 429 ) );
+	}
+	$count = (int) $request->get_param( 'count' );
+	if ( $count < 1 || $count > 2 * TALES2TILES_MAX_PHOTOS ) {
+		return tales2tiles_error( $count < 1 ? __( 'There are no photos to send.', 'tales2tiles' ) : __( 'Too many photos for one order.', 'tales2tiles' ) );
+	}
+	$root   = tales2tiles_drive_root();
+	$folder = is_wp_error( $root ) ? $root : tales2tiles_drive_create_folder( __( 'Upload in progress', 'tales2tiles' ) . ' ' . wp_date( 'Y-m-d H:i' ), $root );
+	if ( is_wp_error( $folder ) ) {
+		return rest_ensure_response( array( 'drive' => false ) ); // Google trouble: the website takes the photos instead.
+	}
+	set_transient( $throttle, $recent + 1, HOUR_IN_SECONDS );
+	$token = wp_generate_password( 32, false );
+	set_transient(
+		'tt_up_' . hash( 'sha256', $token ),
+		array(
+			'folder'   => $folder,
+			'count'    => $count,
+			'sessions' => 0,
+		),
+		DAY_IN_SECONDS
+	);
+	wp_schedule_single_event( time() + DAY_IN_SECONDS + HOUR_IN_SECONDS, 'tales2tiles_drive_discard', array( $folder ) ); // Never ordered: delete it.
+	return rest_ensure_response(
+		array(
+			'drive' => true,
+			'token' => $token,
+		)
+	);
+}
+
+/**
+ * POST uploads/session {token, name, size} — a one-file Google upload link (resumable session URI) the browser PUTs the file to.
+ * The link only accepts that one file of that exact size into the order's temporary folder; it never exposes the owner's login.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function tales2tiles_rest_direct_session( WP_REST_Request $request ) {
+	$key    = 'tt_up_' . hash( 'sha256', (string) $request->get_param( 'token' ) );
+	$upload = get_transient( $key );
+	if ( ! is_array( $upload ) ) {
+		return new WP_Error( 'tales2tiles_forbidden', __( 'This upload has expired. Go back one step and click Next again.', 'tales2tiles' ), array( 'status' => 403 ) );
+	}
+	$name = (string) $request->get_param( 'name' );
+	$size = (int) $request->get_param( 'size' );
+	$max  = ( 0 === strpos( $name, 'photo-' ) ? 10 : 30 ) * MB_IN_BYTES;
+	if ( ! preg_match( TALES2TILES_DIRECT_NAME, $name, $m ) || (int) $m[2] < 1 || (int) $m[2] > $upload['count'] || $size < 1 || $size > $max ) {
+		return tales2tiles_error( __( 'This photo can\'t be uploaded.', 'tales2tiles' ) );
+	}
+	if ( $upload['sessions'] >= 3 * $upload['count'] ) { // Retries allowed, endless uploads not.
+		return tales2tiles_error( __( 'Too many upload attempts. Please message us.', 'tales2tiles' ) );
+	}
+	++$upload['sessions'];
+	set_transient( $key, $upload, DAY_IN_SECONDS );
+
+	$types = array(
+		'jpg'  => 'image/jpeg',
+		'png'  => 'image/png',
+		'webp' => 'image/webp',
+		'heic' => 'image/heic',
+	);
+	$home  = wp_parse_url( home_url() );
+	$start = tales2tiles_drive_request(
+		'POST',
+		'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id',
+		array(
+			'headers' => array(
+				'Content-Type'            => 'application/json; charset=UTF-8',
+				'X-Upload-Content-Type'   => $types[ $m[3] ],
+				'X-Upload-Content-Length' => (string) $size,
+				'Origin'                  => $home['scheme'] . '://' . $home['host'] . ( isset( $home['port'] ) ? ':' . $home['port'] : '' ), // Lets the browser PUT to the link (CORS).
+			),
+			'body'    => wp_json_encode(
+				array(
+					'name'    => $name,
+					'parents' => array( $upload['folder'] ),
+				)
+			),
+		)
+	);
+	$url = is_wp_error( $start ) ? '' : wp_remote_retrieve_header( $start, 'location' );
+	if ( ! $url ) {
+		return new WP_Error( 'tales2tiles_drive', __( 'Google Drive is busy. Please try again.', 'tales2tiles' ), array( 'status' => 502 ) );
+	}
+	return rest_ensure_response(
+		array(
+			'url'  => $url,
+			'type' => $types[ $m[3] ],
+		)
+	);
+}
+
+add_action(
+	'rest_api_init',
+	static function () {
+		register_rest_route(
+			'tales2tiles/v1',
+			'/uploads',
+			array(
+				'methods'             => 'POST',
+				'callback'            => 'tales2tiles_rest_direct_start',
+				'permission_callback' => '__return_true', // Customers aren't logged in; throttled per IP.
+			)
+		);
+		register_rest_route(
+			'tales2tiles/v1',
+			'/uploads/session',
+			array(
+				'methods'             => 'POST',
+				'callback'            => 'tales2tiles_rest_direct_session',
+				'permission_callback' => '__return_true', // Needs the secret token from POST uploads.
+			)
+		);
+	}
+);
+
+/**
+ * The files of a direct upload, checked with Drive (never trusting the browser): all print files must be there.
+ *
+ * @param string $token  Token from POST uploads.
+ * @param int    $photos Number of print files the order needs.
+ * @return array|WP_Error { token_key, folder, files: name => Drive file ID }.
+ */
+function tales2tiles_drive_check_upload( $token, $photos ) {
+	$key    = 'tt_up_' . hash( 'sha256', (string) $token );
+	$upload = get_transient( $key );
+	if ( ! is_array( $upload ) ) {
+		return tales2tiles_error( __( 'Your photo upload expired. Go back to the Receipt step and click Next to send your photos again.', 'tales2tiles' ) );
+	}
+	$files = array();
+	$page  = '';
+	do {
+		$list = tales2tiles_drive_json(
+			tales2tiles_drive_request(
+				'GET',
+				add_query_arg(
+					array_filter(
+						array(
+							'q'         => rawurlencode( "'" . $upload['folder'] . "' in parents and trashed = false" ),
+							'fields'    => 'nextPageToken,files(id,name)',
+							'pageSize'  => 1000,
+							'pageToken' => rawurlencode( $page ),
+						)
+					),
+					TALES2TILES_DRIVE_API
+				)
+			)
+		);
+		if ( is_wp_error( $list ) ) {
+			return new WP_Error( 'tales2tiles_drive', __( 'We couldn\'t reach Google Drive to check your photos. Please try again in a minute.', 'tales2tiles' ), array( 'status' => 502 ) );
+		}
+		foreach ( (array) ( $list['files'] ?? array() ) as $file ) {
+			if ( preg_match( TALES2TILES_DIRECT_NAME, (string) $file['name'] ) ) {
+				$files[ $file['name'] ] = $file['id'];
+			}
+		}
+		$page = (string) ( $list['nextPageToken'] ?? '' );
+	} while ( $page );
+	for ( $i = 1; $i <= $photos; $i++ ) {
+		if ( ! isset( $files[ sprintf( 'photo-%03d.jpg', $i ) ] ) ) {
+			return tales2tiles_error( __( 'Some photos didn\'t finish uploading. Go back to the Receipt step and click Next to send them again.', 'tales2tiles' ) );
+		}
+	}
+	return array(
+		'token_key' => $key,
+		'folder'    => $upload['folder'],
+		'files'     => $files,
+	);
+}
+
+/**
+ * Make a checked direct upload the order's Drive folder: rename it, record its files, list the originals.
+ *
+ * @param int    $post_id Order post ID.
+ * @param array  $order   Order data.
+ * @param array  $upload  From tales2tiles_drive_check_upload().
+ * @param string $url     The order's (website) folder URL, used to name files.
+ */
+function tales2tiles_drive_attach_upload( $post_id, $order, $upload, $url ) {
+	delete_transient( $upload['token_key'] );
+	wp_clear_scheduled_hook( 'tales2tiles_drive_discard', array( $upload['folder'] ) );
+	tales2tiles_drive_request(
+		'PATCH',
+		TALES2TILES_DRIVE_API . '/' . rawurlencode( $upload['folder'] ),
+		array(
+			'headers' => array( 'Content-Type' => 'application/json' ),
+			'body'    => wp_json_encode( array( 'name' => $order['id'] . ' — ' . $order['customer']['name'] ) ),
+		)
+	);
+	update_post_meta(
+		$post_id,
+		'_tt_drive',
+		array(
+			'folder'   => $upload['folder'],
+			'files'    => $upload['files'], // The receipt is still sent by the website (tales2tiles_drive_upload_order).
+			'attempts' => 0,
+		)
+	);
+	foreach ( $upload['files'] as $name => $id ) {
+		if ( preg_match( '/^original-(\d{3})\./', $name, $m ) && (int) $m[1] <= count( $order['photos'] ) ) {
+			add_post_meta( $post_id, '_tt_original', array( (int) $m[1] - 1, $url . '/' . $name ) ); // Served from Drive by tales2tiles_drive_serve_file().
+		}
+	}
+}
+
+add_action(
+	'tales2tiles_drive_discard',
+	static function ( $folder ) {
+		tales2tiles_drive_request( 'DELETE', TALES2TILES_DRIVE_API . '/' . rawurlencode( $folder ) ); // Checkout abandoned after step 4.
+	}
+);
 
 /* ---------- Owner dashboard: Drive link and files served from Drive ---------- */
 

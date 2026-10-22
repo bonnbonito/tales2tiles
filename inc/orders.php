@@ -367,6 +367,9 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 	$config   = tales2tiles_config();
 	$products = $config['products'];
 
+	// Photos already sent straight to Google Drive at checkout step 4 (inc/drive.php), or sent now as data URLs.
+	$direct = (string) $request->get_param( 'upload' );
+
 	// Cart items. Everything is checked before any photo is decoded or written.
 	$raw_items = array_values( (array) $request->get_param( 'items' ) );
 	if ( ! $raw_items || count( $raw_items ) > TALES2TILES_MAX_ITEMS ) {
@@ -407,6 +410,9 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 		}
 		$photos = array_values( (array) ( $raw_item['photos'] ?? array() ) );
 		$needed = $product['per'] * $qty;
+		if ( $direct ) {
+			$photos = (int) ( $raw_item['photoCount'] ?? -1 ) === $needed ? array_fill( 0, $needed, '' ) : array(); // Files are in Drive; only the count comes along.
+		}
 		if ( count( $photos ) !== $needed ) {
 			/* translators: 1: product name, 2: number of photos. */
 			return tales2tiles_error( sprintf( __( '%1$s needs %2$d photos.', 'tales2tiles' ), $product['name'], $needed ) );
@@ -464,8 +470,12 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 	foreach ( $items as $i => $item ) {
 		$items[ $i ]['photoFrom'] = count( $photos );
 		foreach ( $item['photos'] as $data_url ) {
-			$photos[] = tales2tiles_decode_image( (string) $data_url, 8 );
+			$photos[] = $direct ? array( 'ext' => 'jpg' ) : tales2tiles_decode_image( (string) $data_url, 8 );
 		}
+	}
+	$upload = $direct ? tales2tiles_drive_check_upload( $direct, count( $photos ) ) : null;
+	if ( is_wp_error( $upload ) ) {
+		return $upload;
 	}
 	if ( in_array( false, $photos, true ) ) {
 		return tales2tiles_error( __( 'One of your photos could not be read. Please try again.', 'tales2tiles' ) );
@@ -498,6 +508,10 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 	$photo_urls  = array();
 	foreach ( $photos as $i => $photo ) {
 		$name = sprintf( 'photo-%03d.%s', $i + 1, $photo['ext'] );
+		if ( $upload ) { // In Drive only; the dashboard loads it through tales2tiles_drive_serve_file().
+			$photo_urls[] = $url . '/' . $name;
+			continue;
+		}
 		if ( false === file_put_contents( $dir . '/' . $name, $photo['bytes'] ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions
 			$photo_urls[] = false;
 			continue;
@@ -581,6 +595,9 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 		return new WP_Error( 'tales2tiles_storage', __( 'We could not save your order. Please try again later.', 'tales2tiles' ), array( 'status' => 500 ) );
 	}
 	update_post_meta( $post_id, '_tt_order', $order );
+	if ( $upload ) {
+		tales2tiles_drive_attach_upload( $post_id, $order, $upload, $url );
+	}
 	set_transient( $throttle, $recent + 1, HOUR_IN_SECONDS );
 	do_action( 'tales2tiles_order_created', $post_id, $order ); // inc/drive.php queues the Google Drive upload.
 

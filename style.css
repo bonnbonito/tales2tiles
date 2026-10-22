@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.5.25
+Version: 2.6.0
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -788,3 +788,33 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .pdp-split li svg{flex:none;width:20px;height:20px;color:var(--rose)}
 @media (max-width:860px){.pdp{grid-template-columns:1fr;gap:28px;padding-top:24px}.pdp-info{position:static}.pdp-split .wrap{grid-template-columns:1fr;gap:24px}.pdp-split.flip .pdp-split-text{order:0}.pdp-section{padding:44px 0}}
 .pdp-other input{font-size:16px}
+
+/* ---------- Checkout step 4: photos uploading to Google Drive (assets/js/app.js sendPhotos) ---------- */
+.upc{position:relative;padding:28px 26px 26px;border-radius:18px;background:linear-gradient(160deg,color-mix(in srgb,var(--blush) 70%,transparent),transparent 75%);overflow:hidden}
+.upc-head{display:flex;gap:16px;align-items:center;margin-bottom:22px}
+.upc-head h2{margin:0 0 4px}
+.upc-head .sub{margin:0}
+.upc-icon{flex:none;display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--surface);color:var(--rose);box-shadow:0 6px 18px color-mix(in srgb,var(--rose) 22%,transparent);animation:upc-bob 2.4s ease-in-out infinite}
+.upc-icon svg{width:34px;height:34px}
+@keyframes upc-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.upc-bar{position:relative;height:14px;border-radius:999px;background:color-mix(in srgb,var(--ink) 9%,transparent);overflow:hidden}
+.upc-bar span{position:absolute;inset:0 auto 0 0;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--rose),color-mix(in srgb,var(--rose) 55%,#f6b26b));transition:width .35s ease}
+.upc-bar span::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.45) 50%,transparent 80%);background-size:200% 100%;animation:upc-shine 1.6s linear infinite}
+@keyframes upc-shine{from{background-position:150% 0}to{background-position:-50% 0}}
+.upc-meta{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:10px 2px 20px;color:var(--ink-2);font-size:14px}
+.upc-meta b{font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums}
+.upc-thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.upc-t{position:relative;display:grid;place-items:center;width:56px;height:56px;border-radius:10px;background:var(--surface);opacity:.45;transition:opacity .3s,transform .3s}
+.upc-t canvas{max-width:100%;max-height:100%;border-radius:6px;display:block}
+.upc-t.busy{opacity:1;animation:upc-pulse 1.1s ease-in-out infinite}
+.upc-t.ok{opacity:1}
+.upc-t.ok::after{content:"✓";position:absolute;right:-5px;bottom:-5px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--ok);color:#fff;font-size:12px;font-weight:700;border:2px solid var(--surface);animation:pop .35s ease}
+@keyframes upc-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--rose) 45%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--rose) 0%,transparent)}}
+.upc-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.upc.is-done .upc-icon{background:var(--ok);color:#fff;animation:pop .45s ease}
+.upc.is-done .upc-bar span{background:var(--ok)}
+.upc.is-done .upc-bar span::after,.upc.is-failed .upc-bar span::after{animation:none;background:none}
+.upc.is-failed .upc-icon{background:var(--warn-bg);color:var(--warn);animation:none}
+.upc.is-failed .upc-bar span{background:var(--warn)}
+@media (max-width:600px){.upc{padding:22px 18px}.upc-head{gap:12px}.upc-icon{width:52px;height:52px}.upc-t{width:48px;height:48px}}
+@media (prefers-reduced-motion:reduce){.upc-icon,.upc-t.busy,.upc-bar span::after{animation:none}}

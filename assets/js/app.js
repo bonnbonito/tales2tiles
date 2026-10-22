@@ -336,7 +336,7 @@ function thumbBox(a, m) { return a >= 1 ? [m, Math.round(m / a)] : [Math.round(m
 const S = {
   step: 0,
   d: { name: "", phone: "", email: "", address: "", city: "", province: "", postal: "", notes: ls("tt-note") || "" }, // notes: also typed in the slide-in cart
-  receipt: null, payMethod: "GCash", payRef: "",
+  receipt: null, payMethod: "GCash", payRef: "", upload: null, // upload: { token, sig } once checkout step 4 sent the photos to Drive.
   hq: true // Also send the untouched original files after the order (uploadOriginals).
 };
 let render = () => {};
@@ -945,7 +945,10 @@ function stepReceipt(p) {
         </div>
       </div>
       <div class="receipt-prev" id="rprev">${S.receipt ? `<img src="${S.receipt}" alt="Your receipt">` : "Your receipt will show here"}</div>
-    </div>${navHTML()}`;
+    </div>
+    ${cartPhotos() ? `<label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-top:18px"><input type="checkbox" id="hqc"${S.hq ? " checked" : ""}> <span>Also send my original full-quality photos (recommended; uses more mobile data)</span></label>` : ""}
+    ${navHTML()}`;
+  $("#hqc")?.addEventListener("change", e => { S.hq = e.target.checked; });
   $("#pm").onchange = e => S.payMethod = e.target.value;
   $("#ref").oninput = e => S.payRef = e.target.value;
   const take = async f => {
@@ -958,7 +961,109 @@ function stepReceipt(p) {
   ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("over"); }));
   ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("over"); }));
   dz.addEventListener("drop", e => take(e.dataTransfer.files[0]));
-  bindNav(() => S.receipt ? "" : "Upload your payment receipt to continue.");
+  bindNav(() => S.receipt ? "" : "Upload your payment receipt to continue.", () => sendPhotos(p));
+}
+
+/* Checkout step 4 → Next: send the photos straight to Google Drive (inc/drive.php "direct uploads") with a progress card.
+   Each print file (photo-001.jpg …, same order as the server) and, if chosen, each photo's original goes to its own
+   one-file Google upload link. S.upload = { token, sig } when done; Place order then sends only the order details.
+   No Drive connected, or "Send with my order instead": S.upload stays null and Place order uploads through the website. */
+const uploadSig = () => JSON.stringify([S.hq, CART.map(it => [it.id, it.qty, it.copies || 1, it.photos.map(ph => [ph.id, ph.crop])])]);
+const ORIG_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heic" };
+async function sendPhotos(p) {
+  if (!cartPhotos() || S.upload?.sig === uploadSig()) return go(S.step + 1); // Nothing to send, or already sent and unchanged.
+  S.upload = null;
+  const jobs = [], seen = new Set();
+  let n = 0;
+  for (const it of CART) for (const ph of it.photos) {
+    const name = String(++n).padStart(3, "0");
+    jobs.push({ name: `photo-${name}.jpg`, it, ph, est: 400e3, frac: 0 });
+    const ext = ORIG_EXT[ph.file.type] || (/\.hei[cf]$/i.test(ph.file.name) ? "heic" : "");
+    if (S.hq && ext && ph.file.size <= 30 * 1024 * 1024 && !seen.has(ph.id)) { // Same photo printed several times: its original once.
+      seen.add(ph.id); jobs.push({ name: `original-${name}.${ext}`, file: ph.file, est: ph.file.size, frac: 0 });
+    }
+  }
+  const prints = jobs.filter(j => j.ph), total = jobs.reduce((a, j) => a + j.est, 0);
+  p.innerHTML = `<div class="upc" role="status" aria-live="polite">
+      <div class="upc-head"><span class="upc-icon">${ICON.cloud}</span><div><h2 id="upTitle">Sending your photos</h2><p class="sub" id="upSub">Hang tight, this usually takes a minute or two. Please keep this page open.</p></div></div>
+      <div class="upc-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="upFill"></span></div>
+      <div class="upc-meta"><b id="upPct">0%</b><span id="upText">Getting ready…</span></div>
+      <div class="upc-thumbs">${prints.map(() => `<span class="upc-t"><canvas></canvas></span>`).join("")}</div>
+      <div class="upc-actions" id="upAct" hidden><button class="btn" id="upRetry">Try again</button><button class="btn ghost" id="upSkip">Send with my order instead</button></div>
+    </div>`;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  const tiles = $$(".upc-t", p);
+  prints.forEach((j, k) => { // Cart photos keep only the file: make a small copy to draw from (like the cart's thumbnails).
+    j.tile = tiles[k];
+    shrink(j.ph.file, 200).then(r => { const [w, h] = thumbBox(photoAspect(j.ph, PRODUCTS[j.it.product]), 56); paint($("canvas", tiles[k]), j.ph, w, h, r.img); }).catch(() => {});
+  });
+  const show = () => {
+    const pct = Math.min(100, Math.round(jobs.reduce((a, j) => a + j.est * j.frac, 0) / total * 100));
+    $("#upFill").style.width = pct + "%"; $("#upPct").textContent = pct + "%";
+    $(".upc-bar", p).setAttribute("aria-valuenow", pct);
+    const sent = prints.filter(j => j.frac === 1).length;
+    $("#upText").textContent = `${sent} of ${prints.length} photo${prints.length > 1 ? "s" : ""} sent${jobs.length > prints.length ? " · plus your full-quality originals" : ""}`;
+  };
+  const keepOpen = e => { e.preventDefault(); e.returnValue = ""; };
+  let start = null;
+  const run = async () => {
+    $("#upAct").hidden = true; p.querySelector(".upc").classList.remove("is-failed");
+    $("#upTitle").textContent = "Sending your photos"; $("#upSub").textContent = "Hang tight, this usually takes a minute or two. Please keep this page open.";
+    window.addEventListener("beforeunload", keepOpen);
+    try {
+      start ||= await api("uploads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ count: n }) });
+      if (!start.drive) { window.removeEventListener("beforeunload", keepOpen); return go(S.step + 1); } // Drive not set up: the website takes the photos at Place order.
+      await loadTextFonts(prints.map(j => j.ph)); // Text must print in its own font.
+      const queue = jobs.filter(j => j.frac < 1);
+      const worker = async () => { for (let j; (j = queue.shift());) await sendOne(j); };
+      await Promise.all([worker(), worker()]); // Two at a time.
+      S.upload = { token: start.token, sig: uploadSig() };
+      window.removeEventListener("beforeunload", keepOpen);
+      p.querySelector(".upc").classList.add("is-done");
+      $(".upc-icon", p).innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      $("#upTitle").textContent = "All your photos are in!"; $("#upSub").textContent = "Safe and sound. Taking you to the last step…";
+      setTimeout(() => go(S.step + 1), 1100);
+    } catch (e) {
+      window.removeEventListener("beforeunload", keepOpen);
+      if (/expired/i.test(e.message)) { start = null; jobs.forEach(j => { j.frac = 0; j.tile?.classList.remove("ok"); }); show(); } // Start over with a new upload.
+      p.querySelector(".upc").classList.add("is-failed");
+      $("#upTitle").textContent = "Some photos didn't go through";
+      $("#upSub").textContent = "Your connection may have dropped. Try again (we'll pick up where we left off), or send them with your order instead.";
+      $("#upAct").hidden = false;
+    }
+  };
+  const sendOne = async j => {
+    j.tile?.classList.add("busy");
+    let blob = j.file;
+    if (!blob) { // Print file: cropped from the original's full resolution, exactly like the preview.
+      const d = PRODUCTS[j.it.product], c = document.createElement("canvas"), [W, H] = outSize(j.ph, d);
+      const src = await createImageBitmap(j.ph.file).catch(async () => (await shrink(j.ph.file)).img);
+      c.width = W; c.height = H; drawCrop(c.getContext("2d"), src, { ...j.ph.crop }, W, H); src.close?.();
+      blob = await new Promise(ok => c.toBlob(ok, "image/jpeg", .95));
+    }
+    for (let tries = 1; ; tries++) {
+      try {
+        const link = await api("uploads/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: start.token, name: j.name, size: blob.size }) });
+        await new Promise((ok, no) => {
+          const x = new XMLHttpRequest();
+          x.open("PUT", link.url); x.setRequestHeader("Content-Type", link.type);
+          x.upload.onprogress = e => { if (e.lengthComputable) { j.frac = Math.min(.99, e.loaded / e.total); show(); } };
+          x.onload = () => x.status < 300 ? ok() : no(new Error("Upload failed (" + x.status + ")"));
+          x.onerror = () => no(new Error("Upload failed"));
+          x.send(blob);
+        });
+        j.frac = 1; j.tile?.classList.replace("busy", "ok"); show();
+        return;
+      } catch (e) {
+        if (tries >= 3 || /expired|too many/i.test(e.message)) { j.tile?.classList.remove("busy"); throw e; }
+        await new Promise(r => setTimeout(r, 1500 * tries));
+      }
+    }
+  };
+  $("#upRetry").onclick = run;
+  $("#upSkip").onclick = () => { S.upload = null; go(S.step + 1); };
+  show();
+  run();
 }
 
 /* Step — review + submit */
@@ -967,7 +1072,7 @@ function stepReview(p) {
   p.innerHTML = `<h2>Review and submit</h2><p class="sub">Check everything once more. We start making your order after we confirm your payment.</p>
     <div class="review-sec"><h3>Items <button class="linkbtn" data-to="0">Edit</button></h3>
       ${CART.map(it => `<p>${esc(itemName(it))} · ${itemLine(it)}${it.photos.length ? ` · ${it.photos.length} photo${it.photos.length > 1 ? "s" : ""}` : ""}</p>`).join("")}
-      ${n ? `<label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="hqc"${S.hq ? " checked" : ""}> <span>Also send my original full-quality photos (recommended; uses more mobile data)</span></label>` : ""}</div>
+      ${n && S.upload?.sig === uploadSig() ? `<p class="hint" style="margin-top:8px">✓ Photos sent${S.hq ? " with your full-quality originals" : ""}</p>` : n ? `<label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="hqc"${S.hq ? " checked" : ""}> <span>Also send my original full-quality photos (recommended; uses more mobile data)</span></label>` : ""}</div>
     <div class="review-sec"><h3>Deliver to <button class="linkbtn" data-to="1">Edit</button></h3>
       <p><b style="color:var(--ink)">${esc(d.name)}</b> · ${esc(d.phone)}${d.email ? " · " + esc(d.email) : ""}<br>${esc(d.address)}, ${esc(d.city)}, ${esc(d.province)} ${esc(d.postal)}</p></div>
     <div class="review-sec"><h3>Payment <button class="linkbtn" data-to="3">Edit</button></h3><p>${esc(S.payMethod)}${S.payRef ? " · Ref. " + esc(S.payRef) : ""} · receipt attached</p></div>
@@ -984,11 +1089,14 @@ async function submitOrder() {
     Object.entries(S.d).forEach(([k, v]) => fd.append(`customer[${k}]`, v));
     fd.append("receipt", await (await fetch(S.receipt)).blob(), "receipt.jpg");
     const c = document.createElement("canvas"), ctx = c.getContext("2d"), total = cartPhotos();
-    await loadTextFonts(CART.flatMap(it => it.photos)); // Text must print in its own font.
+    const direct = S.upload?.sig === uploadSig() ? S.upload.token : ""; // Photos already in Drive (sendPhotos).
+    if (direct) fd.append("upload", direct);
+    else await loadTextFonts(CART.flatMap(it => it.photos)); // Text must print in its own font.
     let done = 0;
     for (const [n, it] of CART.entries()) {
       const d = PRODUCTS[it.product];
       fd.append(`items[${n}][product]`, it.product); fd.append(`items[${n}][color]`, it.color || ""); fd.append(`items[${n}][qty]`, it.qty); fd.append(`items[${n}][copies]`, it.copies || 1); if (it.feature) fd.append(`items[${n}][feature]`, "1");
+      if (direct) { fd.append(`items[${n}][photoCount]`, it.photos.length); continue; }
       for (const ph of it.photos) {
         btn.innerHTML = `<span class="spinner"></span> Preparing photo ${++done} of ${total}…`;
         // Crop from the original's full resolution (crop values are relative, so framing matches the preview).
@@ -999,11 +1107,11 @@ async function submitOrder() {
       }
     }
     btn.innerHTML = `<span class="spinner"></span> Sending…`;
-    const originals = S.hq ? CART.flatMap(it => it.photos.map(ph => ph.file)) : []; // Same order as the server's photo list.
+    const originals = S.hq && !direct ? CART.flatMap(it => it.photos.map(ph => ph.file)) : []; // Same order as the server's photo list.
     const order = await api("orders", { method: "POST", body: fd });
     ls("tt-last", order.id);
     await cartStore.clear().catch(() => {});
-    CART = []; setCartCount(); COUPON = null; ls("tt-coupon", ""); ls("tt-note", "");
+    CART = []; setCartCount(); COUPON = null; ls("tt-coupon", ""); ls("tt-note", ""); S.upload = null;
     renderDone(order, originals);
   } catch (e) {
     btn.disabled = false; btn.textContent = "Submit order";
