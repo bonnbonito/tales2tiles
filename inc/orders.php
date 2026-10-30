@@ -470,7 +470,7 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 	foreach ( $items as $i => $item ) {
 		$items[ $i ]['photoFrom'] = count( $photos );
 		foreach ( $item['photos'] as $data_url ) {
-			$photos[] = $direct ? array( 'ext' => 'jpg' ) : tales2tiles_decode_image( (string) $data_url, 8 );
+			$photos[] = $direct ? array( 'ext' => 'jpg' ) : tales2tiles_decode_image( (string) $data_url, 30 ); // Full-resolution crops (app.js printSize).
 		}
 	}
 	$upload = $direct ? tales2tiles_drive_check_upload( $direct, count( $photos ) ) : null;

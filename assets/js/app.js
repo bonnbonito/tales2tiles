@@ -332,6 +332,16 @@ function photoDPI(ph, d) {
   return 300 / s; // s = print pixels per original pixel
 }
 const lowRes = (ph, d) => photoDPI(ph, d) < LOW_DPI;
+/* Print file size: only cropped, never resized: the crop at the photo's own resolution (1 original pixel = 1 print-file pixel).
+   ponytail: capped at MAX_CANVAS pixels because browsers (iPhone Safari especially) can't draw bigger canvases; only then is it scaled down. */
+const MAX_CANVAS = 16e6;
+function printSize(ph, d) {
+  const [W, H] = outSize(ph, d), dpi = photoDPI(ph, d);
+  if (!isFinite(dpi)) return [W, H]; // Original size unknown: 300 dpi at the print size.
+  let k = dpi / 300;
+  if (W * k * H * k > MAX_CANVAS) k *= Math.sqrt(MAX_CANVAS / (W * k * H * k));
+  return [Math.max(1, Math.round(W * k)), Math.max(1, Math.round(H * k))];
+}
 function thumbBox(a, m) { return a >= 1 ? [m, Math.round(m / a)] : [Math.round(m * a), m]; }
 
 /* ---------- shared wizard frame (one wizard per page: builder on /order/, checkout on /cart/) ---------- */
@@ -1077,7 +1087,7 @@ async function sendPhotos(p) {
     j.tile?.classList.add("busy");
     let blob = j.file;
     if (!blob) { // Print file: cropped from the original's full resolution, exactly like the preview.
-      const d = PRODUCTS[j.it.product], c = document.createElement("canvas"), [W, H] = outSize(j.ph, d);
+      const d = PRODUCTS[j.it.product], c = document.createElement("canvas"), [W, H] = printSize(j.ph, d);
       const src = await createImageBitmap(j.ph.file).catch(async () => (await shrink(j.ph.file)).img);
       c.width = W; c.height = H; drawCrop(c.getContext("2d"), src, { ...j.ph.crop }, W, H); src.close?.();
       blob = await new Promise(ok => c.toBlob(ok, "image/jpeg", .95));
@@ -1142,7 +1152,7 @@ async function submitOrder() {
         btn.innerHTML = `<span class="spinner"></span> Preparing photo ${++done} of ${total}…`;
         // Crop from the original's full resolution (crop values are relative, so framing matches the preview).
         const src = await createImageBitmap(ph.file).catch(async () => (await shrink(ph.file)).img);
-        const [W, H] = outSize(ph, d); c.width = W; c.height = H; drawCrop(ctx, src, { ...ph.crop }, W, H);
+        const [W, H] = printSize(ph, d); c.width = W; c.height = H; drawCrop(ctx, src, { ...ph.crop }, W, H);
         src.close?.();
         fd.append(`items[${n}][photos][]`, c.toDataURL("image/jpeg", .95)); // Text fields, not files: PHP caps file uploads at 20 per request by default.
       }

@@ -518,7 +518,7 @@ function tales2tiles_rest_direct_session( WP_REST_Request $request ) {
 	}
 	$name = (string) $request->get_param( 'name' );
 	$size = (int) $request->get_param( 'size' );
-	$max  = ( 0 === strpos( $name, 'photo-' ) ? 10 : 30 ) * MB_IN_BYTES;
+	$max  = 30 * MB_IN_BYTES; // Print files are full-resolution crops too, so as big as originals can be.
 	if ( ! preg_match( TALES2TILES_DIRECT_NAME, $name, $m ) || (int) $m[2] < 1 || (int) $m[2] > $upload['count'] || $size < 1 || $size > $max ) {
 		return tales2tiles_error( __( 'This photo can\'t be uploaded.', 'tales2tiles' ) );
 	}
