@@ -55,6 +55,8 @@ function tales2tiles_icon( $name ) {
 		'image'      => '<svg width="44" height="40" viewBox="0 0 44 40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="38" height="34" rx="4"/><circle cx="14" cy="13" r="3.5"/><path d="M4 32l11-11 8 8 6-6 12 12"/></svg>',
 		'truck'      => '<svg width="50" height="36" viewBox="0 0 50 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h28v22H3zM31 12h9l6 7v8H31z"/><circle cx="12" cy="29" r="4" fill="var(--fridge)"/><circle cx="38" cy="29" r="4" fill="var(--fridge)"/><path d="M8 11h8M8 16h5"/></svg>',
 		'arrow'      => '<svg width="30" height="16" viewBox="0 0 30 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8h25M21 2l6 6-6 6"/></svg>',
+		'chevL'      => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+		'chevR'      => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
 		'arrowR'     => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>',
 		'smallHeart' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" width="22" height="22" aria-hidden="true"><path d="M12 20S3 14.5 3 8.6A4.5 4.5 0 0 1 12 6.5a4.5 4.5 0 0 1 9 2.1C21 14.5 12 20 12 20z"/></svg>',
 		'gift18'     => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1.5S10 8 12 8zm0 0c2-4 6-4 6-1.5S14 8 12 8z"/></svg>',
@@ -114,6 +116,52 @@ function tales2tiles_set_price( $p, $qty = null ) {
 }
 
 /**
+ * A product's photos for sliders: its main photo, then its gallery (Products → "Product page").
+ * full/w/h feed the PhotoSwipe lightbox, src is the slide, thumb the thumbnail strip.
+ *
+ * @param array  $product Product from tales2tiles_products().
+ * @param string $size    Slide image size.
+ * @return array[]
+ */
+function tales2tiles_product_slides( $product, $size = 'large' ) {
+	$post_id = (int) ( $product['postId'] ?? 0 );
+	$gallery = array_filter( array_map( 'absint', explode( ',', (string) tales2tiles_field( 'product', 'gallery', $post_id ) ) ) );
+	$slides  = array();
+	foreach ( array_unique( array_filter( array_merge( array( (int) tales2tiles_field( 'product', 'image', $post_id ) ), $gallery ) ) ) as $id ) {
+		$full = wp_get_attachment_image_src( $id, 'full' );
+		if ( $full ) {
+			$slides[] = array(
+				'full'  => $full[0],
+				'w'     => $full[1],
+				'h'     => $full[2],
+				'src'   => (string) wp_get_attachment_image_url( $id, $size ),
+				'thumb' => (string) wp_get_attachment_image_url( $id, 'medium' ),
+			);
+		}
+	}
+	if ( ! $slides && $product['photo'] ) { // A photo without a Media Library entry (the logo fallback): size read in the browser.
+		$slides[] = array(
+			'full'  => $product['photo'],
+			'w'     => 0,
+			'h'     => 0,
+			'src'   => $product['photo'],
+			'thumb' => $product['photo'],
+		);
+	}
+	return $slides;
+}
+
+/**
+ * Link attributes for a slide that opens in the lightbox.
+ *
+ * @param array $slide From tales2tiles_product_slides().
+ * @return string Escaped attributes.
+ */
+function tales2tiles_slide_attrs( $slide ) {
+	return 'href="' . esc_url( $slide['full'] ) . '"' . ( $slide['w'] ? ' data-pswp-width="' . (int) $slide['w'] . '" data-pswp-height="' . (int) $slide['h'] . '"' : '' ) . ' target="_blank" rel="noopener"';
+}
+
+/**
  * Print a product card for the home page.
  *
  * @param string $key     Product key.
@@ -123,8 +171,21 @@ function tales2tiles_product_card( $key, $product ) {
 	$swatch = tales2tiles_config()['swatch'];
 	?>
 	<article class="pcard2">
-		<?php if ( $product['photo'] ) : ?>
-			<button type="button" class="pimg photo" data-zoom="<?php echo esc_url( $product['photo'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: product name. */ __( 'View larger: %s', 'tales2tiles' ), $product['name'] ) ); ?>"><img src="<?php echo esc_url( $product['photo'] ); ?>" alt="<?php echo esc_attr( $product['name'] ); ?>" loading="lazy"></button>
+		<?php $slides = tales2tiles_product_slides( $product, 'medium_large' ); ?>
+		<?php if ( $slides ) : ?>
+			<?php // Photo slider (Swiper); a tap opens the lightbox (assets/js/app.js initGallery). ?>
+			<div class="pimg photo swiper pcard-slider">
+				<div class="swiper-wrapper">
+					<?php foreach ( $slides as $i => $slide ) : ?>
+						<a class="swiper-slide" <?php echo tales2tiles_slide_attrs( $slide ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in tales2tiles_slide_attrs(). ?>><img src="<?php echo esc_url( $slide['src'] ); ?>" alt="<?php echo esc_attr( $product['name'] ); ?>" loading="lazy"></a>
+					<?php endforeach; ?>
+				</div>
+				<?php if ( count( $slides ) > 1 ) : ?>
+					<button type="button" class="pdp-arrow sm prev" aria-label="<?php esc_attr_e( 'Previous photo', 'tales2tiles' ); ?>"><?php echo tales2tiles_icon( 'chevL' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></button>
+					<button type="button" class="pdp-arrow sm next" aria-label="<?php esc_attr_e( 'Next photo', 'tales2tiles' ); ?>"><?php echo tales2tiles_icon( 'chevR' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></button>
+					<div class="pcard-dots"></div>
+				<?php endif; ?>
+			</div>
 		<?php else : ?>
 			<div class="pimg art" data-art="<?php echo esc_attr( $product['art'] ); ?>"></div>
 		<?php endif; ?>

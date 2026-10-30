@@ -26,30 +26,7 @@ endif;
 
 $tales2tiles_variants = tales2tiles_variants( $tales2tiles_p );
 list( $tales2tiles_price, $tales2tiles_note ) = tales2tiles_set_price( $tales2tiles_p, $tales2tiles_variants[0][0] );
-$tales2tiles_gallery = array_filter( array_map( 'absint', explode( ',', (string) $tales2tiles_pf( 'gallery' ) ) ) );
-// Slides: the product photo, then the gallery. full/w/h feed the lightbox; src is the slide, thumb the strip below.
-$tales2tiles_slides = array();
-foreach ( array_unique( array_filter( array_merge( array( (int) $tales2tiles_pf( 'image' ) ), $tales2tiles_gallery ) ) ) as $tales2tiles_id ) {
-	$tales2tiles_full = wp_get_attachment_image_src( $tales2tiles_id, 'full' );
-	if ( $tales2tiles_full ) {
-		$tales2tiles_slides[] = array(
-			'full'  => $tales2tiles_full[0],
-			'w'     => $tales2tiles_full[1],
-			'h'     => $tales2tiles_full[2],
-			'src'   => (string) wp_get_attachment_image_url( $tales2tiles_id, 'large' ),
-			'thumb' => (string) wp_get_attachment_image_url( $tales2tiles_id, 'medium' ),
-		);
-	}
-}
-if ( ! $tales2tiles_slides && $tales2tiles_p['photo'] ) { // A photo without a Media Library entry (the logo fallback): size read in the browser.
-	$tales2tiles_slides[] = array(
-		'full'  => $tales2tiles_p['photo'],
-		'w'     => 0,
-		'h'     => 0,
-		'src'   => $tales2tiles_p['photo'],
-		'thumb' => $tales2tiles_p['photo'],
-	);
-}
+$tales2tiles_slides = tales2tiles_product_slides( $tales2tiles_p );
 $tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
 	$id = (int) $tales2tiles_of( "pp_s{$n}_img" );
 	return $id ? (string) wp_get_attachment_image_url( $id, 'large' ) : tales2tiles_img( 'hero' );
@@ -63,14 +40,14 @@ $tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
 				<div class="swiper pdp-slider">
 					<div class="swiper-wrapper">
 						<?php foreach ( $tales2tiles_slides as $tales2tiles_i => $tales2tiles_slide ) : ?>
-							<a class="swiper-slide" href="<?php echo esc_url( $tales2tiles_slide['full'] ); ?>"<?php echo $tales2tiles_slide['w'] ? ' data-pswp-width="' . (int) $tales2tiles_slide['w'] . '" data-pswp-height="' . (int) $tales2tiles_slide['h'] . '"' : ''; ?> target="_blank" rel="noopener" aria-label="<?php echo esc_attr( sprintf( /* translators: 1: photo number, 2: photo count. */ __( 'Photo %1$d of %2$d, view full size', 'tales2tiles' ), $tales2tiles_i + 1, count( $tales2tiles_slides ) ) ); ?>">
+							<a class="swiper-slide" <?php echo tales2tiles_slide_attrs( $tales2tiles_slide ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in tales2tiles_slide_attrs(). ?> aria-label=""<?php echo esc_attr( sprintf( /* translators: 1: photo number, 2: photo count. */ __( 'Photo %1$d of %2$d, view full size', 'tales2tiles' ), $tales2tiles_i + 1, count( $tales2tiles_slides ) ) ); ?>">
 								<img src="<?php echo esc_url( $tales2tiles_slide['src'] ); ?>" alt="<?php echo esc_attr( $tales2tiles_p['name'] ); ?>"<?php echo $tales2tiles_i ? ' loading="lazy"' : ' fetchpriority="high"'; ?>>
 							</a>
 						<?php endforeach; ?>
 					</div>
 					<?php if ( count( $tales2tiles_slides ) > 1 ) : ?>
-						<button type="button" class="pdp-arrow prev" aria-label="<?php esc_attr_e( 'Previous photo', 'tales2tiles' ); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-						<button type="button" class="pdp-arrow next" aria-label="<?php esc_attr_e( 'Next photo', 'tales2tiles' ); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+						<button type="button" class="pdp-arrow prev" aria-label="<?php esc_attr_e( 'Previous photo', 'tales2tiles' ); ?>"><?php echo tales2tiles_icon( 'chevL' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></button>
+						<button type="button" class="pdp-arrow next" aria-label="<?php esc_attr_e( 'Next photo', 'tales2tiles' ); ?>"><?php echo tales2tiles_icon( 'chevR' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></button>
 						<span class="pdp-count" aria-hidden="true"></span>
 					<?php endif; ?>
 					<span class="pdp-zoom" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M11 8.5v5M8.5 11h5"/></svg></span>

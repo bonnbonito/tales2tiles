@@ -122,7 +122,7 @@ function tales2tiles_enqueue_assets() {
 	}
 
 	$tales2tiles_deps = array();
-	if ( 'product' === tales2tiles_view() ) { // Product gallery: Swiper slider + PhotoSwipe lightbox (assets/vendor, versions in VERSIONS.txt).
+	if ( 'product' === tales2tiles_view() || is_front_page() ) { // Photo sliders (product gallery, home product cards): Swiper + PhotoSwipe lightbox (assets/vendor, versions in VERSIONS.txt).
 		$vendor = get_template_directory_uri() . '/assets/vendor/';
 		wp_enqueue_style( 'tales2tiles-swiper', $vendor . 'swiper-bundle.min.css', array(), '11.2.10' );
 		wp_enqueue_style( 'tales2tiles-photoswipe', $vendor . 'photoswipe.css', array(), '5.4.4' );

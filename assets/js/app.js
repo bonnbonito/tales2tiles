@@ -410,31 +410,37 @@ function startItem(k, qty, color, feature = false) {
 
 /* ---------- Product page (single-tt_product.php): pieces dropdown, live price, Upload pictures ---------- */
 let PRODUCT_HTML = ""; // The server-built page, restored after "Add to cart".
-/* Product gallery: Swiper slider with arrows, counter and a thumbnail strip; a tap opens the PhotoSwipe lightbox
-   (assets/vendor, enqueued on product pages only). Re-run after the page is redrawn (initProductPage). */
+/* Photo sliders (Swiper) with one PhotoSwipe lightbox for all of them (assets/vendor; loaded on product pages and home):
+   the product page gallery (.pdp-slider: arrows, counter, thumbnail strip) and each home product card (.pcard-slider: arrows, dots).
+   Re-run after the product page is redrawn (initProductPage). */
 let galleryLightbox = null;
 function initGallery() {
-  const el = $(".pdp-slider"); if (!el || !window.Swiper) return;
-  const count = $(".pdp-count", el), strip = $(".pdp-thumbs");
-  const thumbs = strip && new Swiper(strip, { slidesPerView: "auto", spaceBetween: 10, watchSlidesProgress: true, freeMode: true });
-  const slider = new Swiper(el, {
-    speed: 450, spaceBetween: 0, grabCursor: true, keyboard: { enabled: true },
-    navigation: { prevEl: $(".pdp-arrow.prev", el), nextEl: $(".pdp-arrow.next", el) },
-    thumbs: thumbs ? { swiper: thumbs } : undefined,
-    a11y: { prevSlideMessage: "Previous photo", nextSlideMessage: "Next photo", slideRole: "link", slideLabelMessage: "Photo {{index}} of {{slidesLength}}, view full size" },
-    on: { init: s => count && (count.textContent = `${s.activeIndex + 1} / ${s.slides.length}`), slideChange: s => count && (count.textContent = `${s.activeIndex + 1} / ${s.slides.length}`) }
-  });
-  if (!window.PhotoSwipeLightbox) return;
+  if (!window.Swiper) return;
+  const a11y = { prevSlideMessage: "Previous photo", nextSlideMessage: "Next photo", slideRole: "link", slideLabelMessage: "Photo {{index}} of {{slidesLength}}, view full size" };
+  const nav = el => ({ prevEl: $(".pdp-arrow.prev", el), nextEl: $(".pdp-arrow.next", el) });
+  const el = $(".pdp-slider");
+  if (el) {
+    const count = $(".pdp-count", el), strip = $(".pdp-thumbs"), say = s => count && (count.textContent = `${s.activeIndex + 1} / ${s.slides.length}`);
+    const thumbs = strip && new Swiper(strip, { slidesPerView: "auto", spaceBetween: 10, watchSlidesProgress: true, freeMode: true });
+    new Swiper(el, { speed: 450, grabCursor: true, keyboard: { enabled: true }, navigation: nav(el), thumbs: thumbs ? { swiper: thumbs } : undefined, a11y, on: { init: say, slideChange: say } });
+  }
+  $$(".pcard-slider").forEach(card => new Swiper(card, {
+    speed: 400, grabCursor: true, nested: true, navigation: nav(card), a11y,
+    pagination: { el: $(".pcard-dots", card), clickable: true, bulletClass: "pcard-dot", bulletActiveClass: "on" }
+  }));
+  if (!window.PhotoSwipeLightbox || !$(".pdp-slider, .pcard-slider")) return;
   galleryLightbox?.destroy();
   galleryLightbox = new PhotoSwipeLightbox({
-    gallery: el, children: "a.swiper-slide", pswpModule: PhotoSwipe,
+    gallery: ".pdp-slider, .pcard-slider", children: "a.swiper-slide", pswpModule: PhotoSwipe,
     bgOpacity: .94, showHideAnimationType: "zoom", wheelToZoom: true, padding: { top: 30, bottom: 30, left: 16, right: 16 }
   });
-  galleryLightbox.addFilter("itemData", (data, i) => { // Photos without known size: use the slide image's own proportions.
+  galleryLightbox.addFilter("itemData", data => { // Photos without known size: use the slide image's own proportions.
     if (!data.width) { const img = $("img", data.element); data.width = (img?.naturalWidth || 1200) * 2; data.height = (img?.naturalHeight || 800) * 2; }
     return data;
   });
-  galleryLightbox.on("change", () => slider.slideTo(galleryLightbox.pswp.currIndex, 0)); // Closing lands on the photo you were viewing.
+  galleryLightbox.on("change", () => { // Closing lands on the photo you were viewing, in the slider it came from.
+    const p = galleryLightbox.pswp; p.currSlide?.data.element?.closest(".swiper")?.swiper?.slideTo(p.currIndex, 0);
+  });
   galleryLightbox.init();
 }
 function initProductPage() {
@@ -1350,6 +1356,7 @@ const qs = new URLSearchParams(location.search);
 showCartCount();
 if (ls("tt-open-cart")) { ls("tt-open-cart", ""); openDrawer(); } // Just added from the builder.
 if (TT.view === "product") loadCart().then(() => { PRODUCT_HTML = app.innerHTML; initProductPage(); });
+else if ($(".pcard-slider")) initGallery(); // Home: a photo slider in each product card.
 else if (TT.view === "order" && (qs.has("product") || qs.has("edit"))) (async () => { // Otherwise the Order page is the server-built grid.
   await loadCart();
   const key = qs.get("product") ?? "", saved = CART.find(it => it.id === qs.get("edit"));

@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.7.0
+Version: 2.7.1
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -839,3 +839,16 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .check.remember{align-items:flex-start!important;margin-top:4px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--blush) 60%,transparent)}
 .check.remember input{margin-top:3px;accent-color:var(--rose)}
 .check.remember small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}
+/* Home product cards: photo slider (assets/js/app.js initGallery). Arrows reuse .pdp-arrow. */
+.pgrid2>.pcard2{min-width:0} /* Swiper inside a grid column: without this the column and the slider widen each other endlessly. */
+.pcard-slider{display:block;position:relative;width:100%}
+.pcard-slider .swiper-wrapper{height:100%}
+.pcard-slider .swiper-slide{display:block;height:100%;cursor:zoom-in}
+.pcard-slider .swiper-slide img{width:100%;height:100%;object-fit:cover;display:block}
+.pdp-arrow.sm{width:34px;height:34px;margin-top:-17px}
+.pdp-arrow.sm svg{width:16px;height:16px}
+.pdp-arrow.sm.prev{left:10px}.pdp-arrow.sm.next{right:10px}
+@media (hover:hover){.pcard-slider .pdp-arrow{opacity:0}.pcard-slider:hover .pdp-arrow:not(.swiper-button-disabled),.pcard-slider .pdp-arrow:focus-visible{opacity:1}}
+.pcard-dots{position:absolute;left:0;right:0;bottom:10px;z-index:2;display:flex;justify-content:center;gap:6px;pointer-events:none}
+.pcard-dot{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.6);box-shadow:0 1px 3px rgba(0,0,0,.35);pointer-events:auto;cursor:pointer;transition:width .25s,background .25s}
+.pcard-dot.on{width:18px;background:#fff}
