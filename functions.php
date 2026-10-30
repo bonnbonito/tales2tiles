@@ -121,10 +121,20 @@ function tales2tiles_enqueue_assets() {
 		);
 	}
 
+	$tales2tiles_deps = array();
+	if ( 'product' === tales2tiles_view() ) { // Product gallery: Swiper slider + PhotoSwipe lightbox (assets/vendor, versions in VERSIONS.txt).
+		$vendor = get_template_directory_uri() . '/assets/vendor/';
+		wp_enqueue_style( 'tales2tiles-swiper', $vendor . 'swiper-bundle.min.css', array(), '11.2.10' );
+		wp_enqueue_style( 'tales2tiles-photoswipe', $vendor . 'photoswipe.css', array(), '5.4.4' );
+		wp_enqueue_script( 'tales2tiles-swiper', $vendor . 'swiper-bundle.min.js', array(), '11.2.10', array( 'strategy' => 'defer', 'in_footer' => true ) );
+		wp_enqueue_script( 'tales2tiles-photoswipe', $vendor . 'photoswipe.umd.min.js', array(), '5.4.4', array( 'strategy' => 'defer', 'in_footer' => true ) );
+		wp_enqueue_script( 'tales2tiles-photoswipe-lightbox', $vendor . 'photoswipe-lightbox.umd.min.js', array(), '5.4.4', array( 'strategy' => 'defer', 'in_footer' => true ) );
+		$tales2tiles_deps = array( 'tales2tiles-swiper', 'tales2tiles-photoswipe', 'tales2tiles-photoswipe-lightbox' );
+	}
 	wp_enqueue_script(
 		'tales2tiles-app',
 		get_template_directory_uri() . '/assets/js/app.js',
-		array(),
+		$tales2tiles_deps,
 		TALES2TILES_VERSION,
 		array(
 			'strategy'  => 'defer',

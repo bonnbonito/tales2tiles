@@ -410,8 +410,36 @@ function startItem(k, qty, color, feature = false) {
 
 /* ---------- Product page (single-tt_product.php): pieces dropdown, live price, Upload pictures ---------- */
 let PRODUCT_HTML = ""; // The server-built page, restored after "Add to cart".
+/* Product gallery: Swiper slider with arrows, counter and a thumbnail strip; a tap opens the PhotoSwipe lightbox
+   (assets/vendor, enqueued on product pages only). Re-run after the page is redrawn (initProductPage). */
+let galleryLightbox = null;
+function initGallery() {
+  const el = $(".pdp-slider"); if (!el || !window.Swiper) return;
+  const count = $(".pdp-count", el), strip = $(".pdp-thumbs");
+  const thumbs = strip && new Swiper(strip, { slidesPerView: "auto", spaceBetween: 10, watchSlidesProgress: true, freeMode: true });
+  const slider = new Swiper(el, {
+    speed: 450, spaceBetween: 0, grabCursor: true, keyboard: { enabled: true },
+    navigation: { prevEl: $(".pdp-arrow.prev", el), nextEl: $(".pdp-arrow.next", el) },
+    thumbs: thumbs ? { swiper: thumbs } : undefined,
+    a11y: { prevSlideMessage: "Previous photo", nextSlideMessage: "Next photo", slideRole: "link", slideLabelMessage: "Photo {{index}} of {{slidesLength}}, view full size" },
+    on: { init: s => count && (count.textContent = `${s.activeIndex + 1} / ${s.slides.length}`), slideChange: s => count && (count.textContent = `${s.activeIndex + 1} / ${s.slides.length}`) }
+  });
+  if (!window.PhotoSwipeLightbox) return;
+  galleryLightbox?.destroy();
+  galleryLightbox = new PhotoSwipeLightbox({
+    gallery: el, children: "a.swiper-slide", pswpModule: PhotoSwipe,
+    bgOpacity: .94, showHideAnimationType: "zoom", wheelToZoom: true, padding: { top: 30, bottom: 30, left: 16, right: 16 }
+  });
+  galleryLightbox.addFilter("itemData", (data, i) => { // Photos without known size: use the slide image's own proportions.
+    if (!data.width) { const img = $("img", data.element); data.width = (img?.naturalWidth || 1200) * 2; data.height = (img?.naturalHeight || 800) * 2; }
+    return data;
+  });
+  galleryLightbox.on("change", () => slider.slideTo(galleryLightbox.pswp.currIndex, 0)); // Closing lands on the photo you were viewing.
+  galleryLightbox.init();
+}
 function initProductPage() {
   const k = TT.product, d = PRODUCTS[k]; if (!d) return;
+  initGallery();
   const qty = $("#pdpQty"), other = $("#pdpOther"), color = $("#pdpColor"), consent = $("#pdpConsent");
   // Pieces: the dropdown choice, or the typed number when "Other amount…" is picked (kept within min–max).
   const pieces = () => qty.value === "other" ? clamp(parseInt(other.value, 10) || d.min, d.min, d.max) : +qty.value || d.min;

@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.6.2
+Version: 2.7.0
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -734,14 +734,31 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 
 /* ---------- Product page (single-tt_product.php) ---------- */
 .pdp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;padding-top:44px;padding-bottom:56px;align-items:start}
-.pdp-gallery{display:flex;flex-direction:column;gap:14px}
-.pdp-main{display:block;width:100%;aspect-ratio:3/2;border:0;padding:0;border-radius:6px;overflow:hidden;background:var(--blush);cursor:zoom-in}
-.pdp-main img{width:100%;height:100%;object-fit:cover;display:block}
+.pdp-gallery{display:flex;flex-direction:column;gap:12px;min-width:0}
+.pdp-main{display:block;width:100%;aspect-ratio:3/2;border:0;padding:0;border-radius:16px;overflow:hidden;background:var(--blush)}
 .pdp-main.art{display:grid;place-items:center;cursor:default}
 .pdp-main.art svg,.pdp-main svg{width:70%;height:auto;margin:auto;display:block}
-.pdp-thumbs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.pdp-thumbs button{border:0;padding:0;border-radius:6px;overflow:hidden;aspect-ratio:3/2;cursor:zoom-in;background:var(--blush)}
+/* Slider (Swiper) + lightbox (PhotoSwipe): assets/js/app.js initGallery */
+.pdp-slider{position:relative;width:100%;aspect-ratio:3/2;border-radius:16px;overflow:hidden;background:var(--blush)}
+.pdp-slider .swiper-slide{display:block;height:100%;cursor:zoom-in}
+.pdp-slider .swiper-slide img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s ease}
+@media (hover:hover){.pdp-slider .swiper-slide:hover img{transform:scale(1.03)}}
+.pdp-arrow{position:absolute;top:50%;z-index:2;display:grid;place-items:center;width:44px;height:44px;margin-top:-22px;border:0;border-radius:50%;background:color-mix(in srgb,var(--surface) 82%,transparent);color:var(--ink);box-shadow:0 4px 16px rgba(0,0,0,.18);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer;transition:opacity .25s,transform .25s,background .2s}
+.pdp-arrow.prev{left:14px}.pdp-arrow.next{right:14px}
+.pdp-arrow:hover{background:var(--surface);transform:scale(1.06)}
+.pdp-arrow:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.pdp-arrow.swiper-button-disabled{opacity:0;pointer-events:none}
+@media (hover:hover){.pdp-slider .pdp-arrow{opacity:0}.pdp-slider:hover .pdp-arrow:not(.swiper-button-disabled),.pdp-arrow:focus-visible{opacity:1}}
+.pdp-count,.pdp-zoom{position:absolute;z-index:2;pointer-events:none;background:rgba(20,14,14,.55);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.pdp-count{left:14px;bottom:14px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:600;letter-spacing:.3px;font-variant-numeric:tabular-nums}
+.pdp-zoom{right:14px;bottom:14px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%}
+.pdp-thumbs{width:100%}
+.pdp-thumbs .swiper-slide{width:84px;aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;opacity:.55;outline:2px solid transparent;outline-offset:-2px;transition:opacity .2s,outline-color .2s}
+.pdp-thumbs .swiper-slide:hover{opacity:.85}
+.pdp-thumbs .swiper-slide-thumb-active{opacity:1;outline-color:var(--rose)}
 .pdp-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+@media (max-width:600px){.pdp-thumbs .swiper-slide{width:64px;border-radius:10px}.pdp-arrow{width:38px;height:38px;margin-top:-19px}}
+@media (prefers-reduced-motion:reduce){.pdp-slider .swiper-slide img{transition:none}}
 .pdp-info{position:sticky;top:96px}
 .pdp-info h1{font-family:var(--sans);font-weight:600;font-size:clamp(28px,3.2vw,38px);line-height:1.15;margin:0 0 18px;padding-bottom:18px;border-bottom:1px solid var(--line)}
 .pdp-price strong{display:block;font-size:34px;font-weight:600;line-height:1.1}

@@ -1,0 +1,2 @@
+Swiper 11.2.10 (MIT) https://swiperjs.com
+PhotoSwipe 5.4.4 (MIT) https://photoswipe.com
