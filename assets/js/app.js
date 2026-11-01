@@ -24,7 +24,6 @@ const ICON = {
   lock: '<svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="14" width="18" height="14" rx="3"/><path d="M11 14v-3a5 5 0 0 1 10 0v3M16 20v3"/></svg>',
   heart: '<svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M16 27S4 19.6 4 11.8A6 6 0 0 1 16 9a6 6 0 0 1 12 2.8C28 19.6 16 27 16 27z"/></svg>',
   truck: '<svg width="32" height="30" viewBox="0 0 34 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8h17v14H3zM20 13h6l4 5v4H20z"/><circle cx="9" cy="24" r="3" fill="var(--mint)"/><circle cx="25" cy="24" r="3" fill="var(--mint)"/></svg>',
-  camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
 };
 
 /* ---------- product art ---------- */
@@ -230,9 +229,19 @@ async function shrink(file, max = 1600, q = .88) {
    the cart thumbnails and the 300 dpi print files, so the print always matches the preview:
    { x, y, zoom, rot (90° steps), land, tilt (straighten ±15°), flip, flipV, fit (whole photo on a background), bg,
      look, b, c, s (brightness/contrast/saturation %), warm (−100…100), texts: [{ t, font, size, x, y, color, bold, italic, shadow, outline, op }] }.
-   Filters use the canvas `filter` property (Chrome, Firefox, Safari 18+); where it's missing the filter controls are hidden.
+   Filters use canvas `filter` when it actually works (Chrome/Firefox); iPhone Safari gets a cached ImageData color-matrix fallback.
    Warmth and text use plain canvas drawing, so they work everywhere. */
-const FILTER_OK = typeof document.createElement("canvas").getContext("2d").filter === "string";
+const FILTER_OK = (() => { // Real probe: Safari 18+ exposes .filter but it is a no-op unless a flag is on.
+  try {
+    const src = document.createElement("canvas"), dst = document.createElement("canvas");
+    src.width = src.height = dst.width = dst.height = 1;
+    const s = src.getContext("2d"), d = dst.getContext("2d", { willReadFrequently: true });
+    if (typeof d.filter !== "string") return false;
+    s.fillStyle = "#fff"; s.fillRect(0, 0, 1, 1);
+    d.filter = "brightness(0)"; d.drawImage(src, 0, 0);
+    return d.getImageData(0, 0, 1, 1).data[0] < 128;
+  } catch (e) { return false; }
+})();
 const LOOKS = { // name, canvas filter steps, extra warmth
   none: ["Original", []],
   vivid: ["Vivid", [["saturate", 1.35], ["contrast", 1.08]]],
@@ -251,6 +260,42 @@ const LOOKS = { // name, canvas filter steps, extra warmth
 const fxCSS = ops => ops.map(([f, v]) => `${f}(${v})`).join(" ") || "none";
 const fxOps = c => [...(LOOKS[c.look] || LOOKS.none)[1], ["brightness", (c.b ?? 100) / 100], ["contrast", (c.c ?? 100) / 100], ["saturate", (c.s ?? 100) / 100]].filter(([f, v]) => v !== (f === "grayscale" || f === "sepia" ? 0 : 1)); // Drop no-op steps.
 const warmth = c => clamp((c.warm || 0) + ((LOOKS[c.look] || LOOKS.none)[2] || 0), -100, 100);
+/* Soft filters for Safari/iPhone: CSS color-matrix ops composed once, then one ImageData pass. Cached on the photo for pan/zoom. */
+const FX_ID = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+const fxMatMul = (a, b) => { // Apply b first, then a (CSS filter list order).
+  const r = new Array(20);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 5; j++) {
+    r[i * 5 + j] = a[i * 5] * b[j] + a[i * 5 + 1] * b[5 + j] + a[i * 5 + 2] * b[10 + j] + a[i * 5 + 3] * b[15 + j] + (j === 4 ? a[i * 5 + 4] : 0);
+  }
+  return r;
+};
+function fxOpMat([f, v]) {
+  if (f === "brightness") return [v, 0, 0, 0, 0, 0, v, 0, 0, 0, 0, 0, v, 0, 0, 0, 0, 0, 1, 0];
+  if (f === "contrast") { const t = 255 * (1 - v) / 2; return [v, 0, 0, 0, t, 0, v, 0, 0, t, 0, 0, v, 0, t, 0, 0, 0, 1, 0]; }
+  if (f === "saturate") return [0.213 + 0.787 * v, 0.715 - 0.715 * v, 0.072 - 0.072 * v, 0, 0, 0.213 - 0.213 * v, 0.715 + 0.285 * v, 0.072 - 0.072 * v, 0, 0, 0.213 - 0.213 * v, 0.715 - 0.715 * v, 0.072 + 0.928 * v, 0, 0, 0, 0, 0, 1, 0];
+  if (f === "grayscale") { const a = 1 - v; return [0.2126 + 0.7874 * a, 0.7152 - 0.7152 * a, 0.0722 - 0.0722 * a, 0, 0, 0.2126 - 0.2126 * a, 0.7152 + 0.2848 * a, 0.0722 - 0.0722 * a, 0, 0, 0.2126 - 0.2126 * a, 0.7152 - 0.7152 * a, 0.0722 + 0.9278 * a, 0, 0, 0, 0, 0, 1, 0]; }
+  if (f === "sepia") { const a = 1 - v; return [0.393 + 0.607 * a, 0.769 - 0.769 * a, 0.189 - 0.189 * a, 0, 0, 0.349 - 0.349 * a, 0.686 + 0.314 * a, 0.168 - 0.168 * a, 0, 0, 0.272 - 0.272 * a, 0.534 - 0.534 * a, 0.131 + 0.869 * a, 0, 0, 0, 0, 0, 1, 0]; }
+  return FX_ID.slice();
+}
+const opsMatrix = ops => ops.reduce((m, op) => fxMatMul(fxOpMat(op), m), FX_ID.slice());
+function softFiltered(img, ops, host) {
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  const key = fxCSS(ops) + "|" + w + "x" + h;
+  if (host && host._fxKey === key && host._fx) return host._fx;
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  const id = x.getImageData(0, 0, w, h), d = id.data, m = opsMatrix(ops);
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    d[i] = clamp(Math.round(m[0] * r + m[1] * g + m[2] * b + m[4]), 0, 255);
+    d[i + 1] = clamp(Math.round(m[5] * r + m[6] * g + m[7] * b + m[9]), 0, 255);
+    d[i + 2] = clamp(Math.round(m[10] * r + m[11] * g + m[12] * b + m[14]), 0, 255);
+  }
+  x.putImageData(id, 0, 0);
+  if (host) { host._fxKey = key; host._fx = c; }
+  return c;
+}
 const freshCrop = (land = false) => ({ x: 0, y: 0, zoom: 1, rot: 0, land, tilt: 0, flip: false, flipV: false, fit: false, bg: "#ffffff", look: "none", b: 100, c: 100, s: 100, warm: 0, texts: [] });
 const FONTS = { // key: [family, fallback]; web fonts are loaded on the order and cart pages (functions.php)
   jost: ["Jost", "sans-serif"], arial: ["Arial", "sans-serif"], georgia: ["Georgia", "serif"], courier: ["Courier New", "monospace"],
@@ -281,7 +326,7 @@ function drawTexts(ctx, texts, W, H) {
   }
 }
 const loadTextFonts = photos => Promise.all(photos.flatMap(ph => (ph.crop.texts || []).map(t => document.fonts?.load(fontCSS(t, 40)).catch(() => {}))));
-function drawCrop(ctx, img, c, W, H) {
+function drawCrop(ctx, img, c, W, H, cache) {
   const fx = c.flip ? -1 : 1, fy = c.flipV ? -1 : 1, a = ((c.rot || 0) + (c.tilt || 0)) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
   const A = Math.abs(ca), B = Math.abs(sa);
   let s, px = c.x * W, py = c.y * H;
@@ -301,13 +346,15 @@ function drawCrop(ctx, img, c, W, H) {
     px = qx * ca - qy * sa; py = qx * sa + qy * ca;
   }
   c.x = px / W; c.y = py / H;
-  const iw = img.width * s, ih = img.height * s, warm = warmth(c);
+  const ops = fxOps(c), iw = img.width * s, ih = img.height * s, warm = warmth(c);
+  let src = img;
+  if (ops.length && !FILTER_OK) src = softFiltered(img, ops, cache);
   ctx.save(); ctx.fillStyle = c.fit ? (c.bg || "#ffffff") : "#fff"; ctx.fillRect(0, 0, W, H);
   ctx.save();
   ctx.translate(W / 2 + px, H / 2 + py); ctx.scale(fx, fy); ctx.rotate(fx * fy * a); // Mirror, keeping the rotation direction.
   ctx.imageSmoothingQuality = "high";
-  if (FILTER_OK) ctx.filter = fxCSS(fxOps(c));
-  ctx.drawImage(img, -iw / 2, -ih / 2, iw, ih);
+  if (ops.length && FILTER_OK) ctx.filter = fxCSS(ops);
+  ctx.drawImage(src, -iw / 2, -ih / 2, iw, ih);
   if (warm) { // Warm/cool tint over the photo only.
     if (FILTER_OK) ctx.filter = "none";
     ctx.globalCompositeOperation = "soft-light";
@@ -321,7 +368,7 @@ function drawCrop(ctx, img, c, W, H) {
 function paint(canvas, ph, W, H, img = ph.img) {
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.width = W + "px"; canvas.style.height = H + "px";
-  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); drawCrop(ctx, img, ph.crop, W, H);
+  const ctx = canvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); drawCrop(ctx, img, ph.crop, W, H, ph);
 }
 /* Print sharpness: dots per inch the original photo gives at the chosen crop (prints are 300 dpi). */
 const LOW_DPI = 150;
@@ -380,25 +427,18 @@ const qtyText = it => {
   const d = PRODUCTS[it.product], opt = (d.options || []).find(o => o[0] === it.qty);
   return opt && opt[1] ? opt[1] : d.tiers ? `Set of ${it.qty}` : `${it.qty} ${it.qty === 1 ? d.unitWord.replace(/s$/, "") : d.unitWord}`;
 };
-/* "Upload images" modal: drop zone + "Upload photos"; Camera only when capture= opens the camera (phones / coarse-pointer tablets). Calls onFiles(File[]). */
+/* "Upload images" modal: drop zone + "Upload photos". Calls onFiles(File[]). */
 const SRC_ICON = {
   photos: '<svg width="84" height="72" viewBox="0 0 84 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="22" width="34" height="34" rx="5" transform="rotate(-12 27 39)"/><rect x="38" y="10" width="32" height="32" rx="5" transform="rotate(14 54 26)"/><circle cx="22" cy="36" r="3"/><circle cx="56" cy="22" r="3"/><path d="M14 52l9-9 8 7 7-6M8 12l3 0M9.5 10.5v3M74 54h4M76 52v4"/><circle cx="76" cy="44" r="2"/><circle cx="12" cy="20" r="2"/></svg>'
 };
-const canCapturePhoto = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches);
 function openUploader(onFiles, multiple = true) {
-  const cam = canCapturePhoto();
   const m = modal(`<div class="mhead"><h2>Upload images</h2><button class="close" aria-label="Close">×</button></div>
     <label class="up-drop" id="upDrop"><input type="file" accept="image/*"${multiple ? " multiple" : ""} class="sr" id="upFile">
       <span class="up-hint">Drag &amp; drop images</span>${SRC_ICON.photos}<span class="btn dark">+ Upload photos</span></label>
-    ${cam ? `<p class="up-or">or take a photo</p>
-    <div class="up-sources">
-      <label class="up-src" aria-label="Take a photo" title="Camera"><input type="file" accept="image/*" capture="environment" class="sr" id="upCam">${ICON.camera}</label>
-    </div>` : ''}
     <button type="button" class="btn ghost block" id="upCancel">Cancel</button>`);
   m.classList.add("upload-modal");
   const take = files => { const list = [...files]; if (!list.length) return; closeModal(); onFiles(list); };
   $("#upFile", m).onchange = e => take(e.target.files);
-  if (cam) $("#upCam", m).onchange = e => take(e.target.files);
   const dz = $("#upDrop", m);
   ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("over"); }));
   ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("over"); }));
@@ -657,7 +697,7 @@ function stepAdjust(p, opts = {}) {
       <div><div class="crop-stage" id="stage"><div class="crop-frame ${d.circle ? "circle" : ""} ${d.pin ? "pin" : ""}" id="frame"><canvas id="cv"></canvas><div class="grid3"></div></div></div>
         <p class="hint" id="which"></p><p class="note warn" id="lowres" hidden></p></div>
       <div class="ctrls">
-        <div class="seg adj-tabs" id="tabs"><button data-tab="crop">Crop</button>${FILTER_OK ? `<button data-tab="look">Filters</button>` : ""}<button data-tab="light">Adjust</button><button data-tab="text">Text</button></div>
+        <div class="seg adj-tabs" id="tabs"><button data-tab="crop">Crop</button><button data-tab="look">Filters</button><button data-tab="light">Adjust</button><button data-tab="text">Text</button></div>
         <div class="adj-pane" data-pane="crop">
           ${d.orient ? `<div class="ctrl"><label>Orientation</label><div class="seg" id="orient"><button data-o="0">Portrait</button><button data-o="1">Landscape</button></div></div>` : ""}
           <div class="ctrl"><label for="zoom">Zoom</label><div class="zoomrow"><button class="iconbtn" id="zout" aria-label="Zoom out">−</button><input type="range" id="zoom" min="1" max="3" step="0.01"><button class="iconbtn" id="zin" aria-label="Zoom in">+</button></div></div>
@@ -665,7 +705,7 @@ function stepAdjust(p, opts = {}) {
             <div class="swatches" id="bgs" hidden>${colors("bg", BG_COLORS)}<input type="color" id="bgc" aria-label="Custom background color"></div></div>
         </div>
         <div class="adj-pane" data-pane="look" hidden><div class="looks">${Object.entries(LOOKS).map(([k, [name, ops, w]]) => `<button class="look" data-look="${k}"><span class="look-img"><img alt="" style="filter:${fxCSS(ops)}">${w ? `<i style="background:${w > 0 ? "rgba(255,140,40," : "rgba(40,120,255,"}${Math.abs(w) / 100 * .55})"></i>` : ""}</span><span>${name}</span></button>`).join("")}</div></div>
-        <div class="adj-pane" data-pane="light" hidden>${FILTER_OK ? slider("b", "Brightness", 50, 150, 1) + slider("c", "Contrast", 50, 150, 1) + slider("s", "Saturation", 0, 200, 1) : ""}${slider("warm", "Warmth", -100, 100, 1)}</div>
+        <div class="adj-pane" data-pane="light" hidden>${slider("b", "Brightness", 50, 150, 1)}${slider("c", "Contrast", 50, 150, 1)}${slider("s", "Saturation", 0, 200, 1)}${slider("warm", "Warmth", -100, 100, 1)}</div>
         <div class="adj-pane" data-pane="text" hidden>
           <button class="btn ghost sm block" id="addText">+ Add text</button>
           <div id="textEdit" hidden>

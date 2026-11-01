@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.7.7
+Version: 2.7.9
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -689,15 +689,11 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 /* ---------- Storefront and flow per the spec (heading, cards, upload modal, warnings, confirmation) ---------- */
 
 .upload-modal .mbox{max-width:640px;text-align:center}
-.up-drop{display:flex;flex-direction:column;align-items:center;gap:18px;padding:34px 20px;border:1.5px dashed var(--line);border-radius:16px;cursor:pointer;color:var(--ink-2)}
+.up-drop{display:flex;flex-direction:column;align-items:center;gap:18px;padding:34px 20px;margin-bottom:22px;border:1.5px dashed var(--line);border-radius:16px;cursor:pointer;color:var(--ink-2)}
 .up-drop.over{border-color:var(--rose);background:var(--blush)}
 .up-hint{font-size:14px}
 .btn.dark{background:#111;color:#fff}
 .btn.dark:hover{background:#000}
-.up-or{margin:22px 0 12px;color:var(--ink-2);font-size:14px}
-.up-sources{display:flex;justify-content:center;gap:12px;margin-bottom:26px}
-.up-src{width:54px;height:54px;display:grid;place-items:center;border:0;border-radius:6px;background:#111;color:#fff;cursor:pointer}
-.up-src:hover{background:#000}
 
 .pv-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 14px}
 .pv-bar .pv-count{margin:0;font-size:15px;color:var(--ink-2)}
@@ -713,8 +709,6 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 
 .done-summary{text-align:left;margin:22px auto;max-width:460px}
 .done-summary .srow span:last-child small{text-align:right}
-.up-src svg{width:24px;height:24px}
-
 
 /* Shared by the builder's product photo (.opt-art) and cart items (.ci-art). */
 .opt-art,.ci-art{background:var(--blush);border-radius:12px;display:grid;place-items:center;overflow:hidden;aspect-ratio:1}
