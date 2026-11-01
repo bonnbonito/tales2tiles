@@ -380,34 +380,30 @@ const qtyText = it => {
   const d = PRODUCTS[it.product], opt = (d.options || []).find(o => o[0] === it.qty);
   return opt && opt[1] ? opt[1] : d.tiers ? `Set of ${it.qty}` : `${it.qty} ${it.qty === 1 ? d.unitWord.replace(/s$/, "") : d.unitWord}`;
 };
-/* "Upload images" modal: drop zone + "Upload From PC", or Google Drive / Camera / Facebook. Calls onFiles(File[]). */
+/* "Upload images" modal: drop zone + "Upload photos"; Camera only when capture= opens the camera (phones / coarse-pointer tablets). Calls onFiles(File[]). */
 const SRC_ICON = {
-  photos: '<svg width="84" height="72" viewBox="0 0 84 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="22" width="34" height="34" rx="5" transform="rotate(-12 27 39)"/><rect x="38" y="10" width="32" height="32" rx="5" transform="rotate(14 54 26)"/><circle cx="22" cy="36" r="3"/><circle cx="56" cy="22" r="3"/><path d="M14 52l9-9 8 7 7-6M8 12l3 0M9.5 10.5v3M74 54h4M76 52v4"/><circle cx="76" cy="44" r="2"/><circle cx="12" cy="20" r="2"/></svg>',
-  drive: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3h7l6 10.5-3.5 6h-12L2.5 13.5z"/><path d="M8.5 3l6.5 11M15.5 3L9 14M2.5 13.5h19M6 19.5l3-5.5M18 19.5l-3-5.5"/></svg>',
-  facebook: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M13.2 21.4V13h2.6l.4-3h-3V8.3c0-.9.3-1.5 1.5-1.5h1.6V4.2a20 20 0 0 0-2.3-.1c-2.3 0-3.8 1.4-3.8 3.9V10H7.6v3h2.6v8.3" stroke-linejoin="round"/></svg>'
+  photos: '<svg width="84" height="72" viewBox="0 0 84 72" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="22" width="34" height="34" rx="5" transform="rotate(-12 27 39)"/><rect x="38" y="10" width="32" height="32" rx="5" transform="rotate(14 54 26)"/><circle cx="22" cy="36" r="3"/><circle cx="56" cy="22" r="3"/><path d="M14 52l9-9 8 7 7-6M8 12l3 0M9.5 10.5v3M74 54h4M76 52v4"/><circle cx="76" cy="44" r="2"/><circle cx="12" cy="20" r="2"/></svg>'
 };
+const canCapturePhoto = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches);
 function openUploader(onFiles, multiple = true) {
+  const cam = canCapturePhoto();
   const m = modal(`<div class="mhead"><h2>Upload images</h2><button class="close" aria-label="Close">×</button></div>
     <label class="up-drop" id="upDrop"><input type="file" accept="image/*"${multiple ? " multiple" : ""} class="sr" id="upFile">
-      <span class="up-hint">Drag &amp; drop images</span>${SRC_ICON.photos}<span class="btn dark">+ Upload From PC</span></label>
-    <p class="up-or">or choose from</p>
+      <span class="up-hint">Drag &amp; drop images</span>${SRC_ICON.photos}<span class="btn dark">+ Upload photos</span></label>
+    ${cam ? `<p class="up-or">or take a photo</p>
     <div class="up-sources">
-      <button type="button" class="up-src" data-src="Google Drive" aria-label="Choose from Google Drive" title="Google Drive">${SRC_ICON.drive}</button>
       <label class="up-src" aria-label="Take a photo" title="Camera"><input type="file" accept="image/*" capture="environment" class="sr" id="upCam">${ICON.camera}</label>
-      <button type="button" class="up-src" data-src="Facebook" aria-label="Choose from Facebook" title="Facebook">${SRC_ICON.facebook}</button>
-    </div>
+    </div>` : ''}
     <button type="button" class="btn ghost block" id="upCancel">Cancel</button>`);
   m.classList.add("upload-modal");
   const take = files => { const list = [...files]; if (!list.length) return; closeModal(); onFiles(list); };
   $("#upFile", m).onchange = e => take(e.target.files);
-  $("#upCam", m).onchange = e => take(e.target.files);
+  if (cam) $("#upCam", m).onchange = e => take(e.target.files);
   const dz = $("#upDrop", m);
   ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("over"); }));
   ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("over"); }));
   dz.addEventListener("drop", e => take(e.dataTransfer.files));
   $("#upCancel", m).onclick = closeModal;
-  // ponytail: Google Drive / Facebook pickers are placeholders; wire Google Picker (API key + OAuth client) and Facebook (app review needed) here.
-  $$("[data-src]", m).forEach(b => b.onclick = () => toast(`${b.dataset.src} import is coming soon. For now, save the photos to your device and use Upload From PC.`));
 }
 
 /* Start a cart item from the product page: upload photos, or add straight away. */
@@ -585,8 +581,13 @@ function stepPreview(p) {
         <div class="pv-grid" id="pvgrid"></div>
       </div>
       <aside class="pv-side">
+        <h3 class="pv-help-title">How to use each tool</h3>
         <ul class="pv-help">
-          <li>${TOOL.edit} Edit photo: crop, filters and fit</li><li>${TOOL.text} Add text</li>${d.sides ? "" : `<li>${TOOL.copy} Duplicate, to design it differently</li>`}<li>${TOOL.trash} Delete a photo</li>
+          <li>${TOOL.edit}<span><b>Edit</b> Crop, zoom, filters, or fit the whole photo. Use this first if framing looks off.</span></li>
+          <li>${TOOL.text}<span><b>Text</b> Add a name, date, or short message on the photo.</span></li>
+          ${d.sides ? "" : `<li>${TOOL.copy}<span><b>Duplicate</b> Same picture, separate design. Use when one photo needs two different crops or texts.</span></li>`}
+          <li>${TOOL.trash}<span><b>Delete</b> Remove this photo so you can upload another.</span></li>
+          ${d.sides || need < 2 ? "" : `<li><span class="pv-help-ico" aria-hidden="true">±</span><span><b>Prints − / +</b> Print the same design on more magnets. Use this instead of re-uploading when several pieces share one photo.</span></li>`}
         </ul>
         ${d.sides ? `<p class="hint">Photos go in pairs: front, then back of each piece.</p>` : ""}
         ${d.pin ? `<p class="hint">The dashed ring is the front of the pin. Anything outside it wraps around the edge.</p>` : ""}

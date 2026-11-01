@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.7.2
+Version: 2.7.7
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -645,8 +645,12 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .pv-tile.empty:hover{border-color:var(--rose)}
 .pv-side{position:sticky;top:96px;background:var(--blush);border-radius:20px;padding:20px}
 .pv-count{font-size:18px;margin:0 0 12px}
-.pv-help{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--ink-2)}
-.pv-help li{display:flex;gap:8px;align-items:center}
+.pv-help-title{margin:0 0 10px;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.pv-help{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.35;color:var(--ink-2)}
+.pv-help li{display:flex;gap:8px;align-items:flex-start}
+.pv-help li > svg,.pv-help-ico{flex:0 0 auto;width:16px;height:16px;margin-top:2px}
+.pv-help-ico{display:grid;place-items:center;font-size:13px;font-weight:600;line-height:1;color:var(--ink)}
+.pv-help b{color:var(--ink);font-weight:600;margin-right:.25em}
 .pv-side .wiz-nav{flex-direction:column-reverse;margin-top:16px}
 .pv-side .wiz-nav .btn{width:100%}
 @media (max-width:860px){.pv{grid-template-columns:1fr}.pv-side{position:static}.pv-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
