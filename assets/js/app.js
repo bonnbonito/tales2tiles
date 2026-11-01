@@ -228,7 +228,7 @@ async function shrink(file, max = 1600, q = .88) {
 /* Photo edits live on each photo's crop object and are drawn by drawCrop, which makes the previews,
    the cart thumbnails and the 300 dpi print files, so the print always matches the preview:
    { x, y, zoom, rot (90° steps), land, tilt (straighten ±15°), flip, flipV, fit (whole photo on a background), bg,
-     look, b, c, s (brightness/contrast/saturation %), warm (−100…100), texts: [{ t, font, size, x, y, color, bold, italic, shadow, outline, op }] }.
+     look, b, c, s (brightness/contrast/saturation %), warm (−100…100), texts: [{ t, font, size, x, y, color, bold, italic, shadow, outline, outlineColor, op }] }.
    Filters use canvas `filter` when it actually works (Chrome/Firefox); iPhone Safari gets a cached ImageData color-matrix fallback.
    Warmth and text use plain canvas drawing, so they work everywhere. */
 const FILTER_OK = (() => { // Real probe: Safari 18+ exposes .filter but it is a no-op unless a flag is on.
@@ -303,7 +303,8 @@ const FONTS = { // key: [family, fallback]; web fonts are loaded on the order an
   playfair: ["Playfair Display", "serif"], cormorant: ["Cormorant Garamond", "serif"]
 };
 const fontCSS = (t, H) => `${t.italic ? "italic " : ""}${t.bold ? 700 : 400} ${Math.max(1, t.size * H)}px "${(FONTS[t.font] || FONTS.jost)[0]}", ${(FONTS[t.font] || FONTS.jost)[1]}`;
-const newText = () => ({ t: "Your text", font: "pacifico", size: .12, x: .5, y: .82, color: "#ffffff", bold: false, italic: false, shadow: true, outline: false, op: 1 });
+const newText = () => ({ t: "Your text", font: "pacifico", size: .12, x: .5, y: .82, color: "#ffffff", bold: false, italic: false, shadow: true, outline: false, outlineColor: "#000000", op: 1 });
+const outlineStroke = t => t.outlineColor || (/^#(000|000000)$/i.test(t.color) ? "#fff" : "#000"); // Older texts had no outlineColor: contrast against the fill.
 function textBox(ctx, t, W, H) { // Text block bounds in frame pixels (for dragging).
   ctx.save(); ctx.font = fontCSS(t, H);
   const lines = t.t.split("\n"), lh = t.size * H * 1.15, w = Math.max(...lines.map(l => ctx.measureText(l).width));
@@ -319,7 +320,7 @@ function drawTexts(ctx, texts, W, H) {
     if (t.shadow) { ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = px * .15; ctx.shadowOffsetY = px * .06; }
     lines.forEach((ln, i) => {
       const y = y0 + i * lh;
-      if (t.outline) { ctx.lineWidth = Math.max(1, px * .09); ctx.lineJoin = "round"; ctx.strokeStyle = /^#(000|000000)$/i.test(t.color) ? "#fff" : "#000"; ctx.strokeText(ln, t.x * W, y); }
+      if (t.outline) { ctx.lineWidth = Math.max(1, px * .09); ctx.lineJoin = "round"; ctx.strokeStyle = outlineStroke(t); ctx.strokeText(ln, t.x * W, y); }
       ctx.fillStyle = t.color; ctx.fillText(ln, t.x * W, y);
     });
     ctx.restore();
@@ -715,6 +716,7 @@ function stepAdjust(p, opts = {}) {
               <button class="iconbtn" data-ts="bold" aria-label="Bold"><b>B</b></button><button class="iconbtn" data-ts="italic" aria-label="Italic"><i>I</i></button>
               <button class="iconbtn" data-ts="shadow" aria-label="Shadow"><span style="text-shadow:1px 2px 2px currentColor">S</span></button><button class="iconbtn" data-ts="outline" aria-label="Outline"><span style="-webkit-text-stroke:1.3px var(--ink);color:transparent;font-weight:700;font-size:17px">O</span></button></div></div>
             <div class="ctrl"><label>Color</label><div class="swatches">${colors("tc", TEXT_COLORS)}<input type="color" id="tcc" aria-label="Custom text color"></div></div>
+            <div class="ctrl" id="outlineColors" hidden><label>Outline color</label><div class="swatches">${colors("oc", TEXT_COLORS)}<input type="color" id="occ" aria-label="Custom outline color"></div></div>
             ${slider("tsize", "Size", 4, 30, 1)}${slider("top", "Opacity", 20, 100, 1)}
             <div class="btnrow"><button class="btn ghost sm" id="nextText" hidden>Next text</button><button class="btn danger sm" id="delText">Delete text</button></div>
           </div>
@@ -757,6 +759,9 @@ function stepAdjust(p, opts = {}) {
     $("#tt").value = t.t; $("#tcount").textContent = `${t.t.length}/80`; $("#tfont").value = t.font; $("#tfont").style.fontFamily = `'${FONTS[t.font][0]}'`;
     $$("[data-ts]").forEach(b => pressed(b, t[b.dataset.ts]));
     $$("[data-tc]").forEach(b => pressed(b, b.dataset.tc === t.color)); $("#tcc").value = t.color;
+    $("#outlineColors").hidden = !t.outline;
+    const oc = outlineStroke(t);
+    $$("[data-oc]").forEach(b => pressed(b, b.dataset.oc === oc)); $("#occ").value = oc;
     $("#tsize").value = Math.round(t.size * 100); $("#tsizev").textContent = Math.round(t.size * 100);
     $("#top").value = Math.round((t.op ?? 1) * 100); $("#topv").textContent = `${Math.round((t.op ?? 1) * 100)}%`;
   };
@@ -786,9 +791,15 @@ function stepAdjust(p, opts = {}) {
   $("#addText").onclick = () => { const t = newText(); (crop().texts ||= []).push(t); ti = crop().texts.length - 1; syncText(); loadFont(t); redraw(); $("#tt").select(); };
   $("#tt").oninput = e => { txt().t = e.target.value; $("#tcount").textContent = `${e.target.value.length}/80`; redraw(); };
   $("#tfont").onchange = e => { txt().font = e.target.value; syncText(); loadFont(txt()); redraw(); };
-  $$("[data-ts]").forEach(b => b.onclick = () => { const t = txt(); t[b.dataset.ts] = !t[b.dataset.ts]; syncText(); loadFont(t); redraw(); });
+  $$("[data-ts]").forEach(b => b.onclick = () => {
+    const t = txt(); t[b.dataset.ts] = !t[b.dataset.ts];
+    if (b.dataset.ts === "outline" && t.outline && !t.outlineColor) t.outlineColor = outlineStroke(t);
+    syncText(); loadFont(t); redraw();
+  });
   $$("[data-tc]").forEach(b => b.onclick = () => { txt().color = b.dataset.tc; syncText(); redraw(); });
   $("#tcc").oninput = e => { txt().color = e.target.value; syncText(); redraw(); };
+  $$("[data-oc]").forEach(b => b.onclick = () => { txt().outlineColor = b.dataset.oc; syncText(); redraw(); });
+  $("#occ").oninput = e => { txt().outlineColor = e.target.value; syncText(); redraw(); };
   $("#tsize").oninput = e => { txt().size = +e.target.value / 100; $("#tsizev").textContent = e.target.value; redraw(); };
   $("#top").oninput = e => { txt().op = +e.target.value / 100; $("#topv").textContent = `${e.target.value}%`; redraw(); };
   $("#delText").onclick = () => { crop().texts.splice(ti, 1); ti = crop().texts.length - 1; syncText(); redraw(); };

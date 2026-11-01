@@ -30,6 +30,9 @@ function tales2tiles_setup() {
 }
 add_action( 'after_setup_theme', 'tales2tiles_setup' );
 
+// Keep full-resolution originals in the Media Library (WP 5.3+ otherwise makes a -scaled copy above 2560px).
+add_filter( 'big_image_size_threshold', '__return_false' );
+
 /**
  * Create the app pages the theme needs (templates page-{slug}.php render them).
  */
