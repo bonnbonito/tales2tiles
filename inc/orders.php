@@ -21,7 +21,7 @@
 defined( 'ABSPATH' ) || exit;
 
 const TALES2TILES_STATUSES = array( 'pending', 'approved', 'processing', 'completed', 'rejected' );
-const TALES2TILES_ID_REGEX = 'TT-\d{4}-\d{4}-\d{4,}';
+const TALES2TILES_ID_REGEX = 'TT-(?:\d{6}-\d{3,}|\d{4}-\d{4}-\d{4,}|\d{4})'; // New TT-yymmdd-###; older TT-YYYY-MMDD-###### and 4-digit ids still match.
 const TALES2TILES_MAX_ITEMS  = 30;  // Cart lines per order.
 const TALES2TILES_MAX_PHOTOS = 200; // Print photos per order; all arrive in one request (see AGENTS.md: post_max_size).
 
@@ -150,7 +150,7 @@ function tales2tiles_error( $message ) {
 /**
  * Find an order post by its order number.
  *
- * @param string $id Order number, e.g. TT-2026-0924-0001.
+ * @param string $id Order number, e.g. TT-261102-001.
  * @return WP_Post|null
  */
 function tales2tiles_find_order( $id ) {
@@ -339,14 +339,19 @@ function tales2tiles_rest_check_coupon( WP_REST_Request $request ) {
 }
 
 /**
- * New order number like TT-2026-1021-483920: date plus 6 random digits, so numbers don't reveal how many orders came before.
+ * New order number like TT-261102-001: site-local date + daily sequence (001, 002, …).
  *
  * @return string
  */
 function tales2tiles_new_order_id() {
+	$day = wp_date( 'ymd' );
+	$key = 'tales2tiles_oid_' . $day;
+	$n   = (int) get_option( $key, 0 );
 	do {
-		$id = 'TT-' . wp_date( 'Y-md' ) . '-' . random_int( 100000, 999999 );
-	} while ( tales2tiles_find_order( $id ) ); // ponytail: check-then-insert; two orders drawing the same number in the same second is ~1 in 900,000.
+		++$n;
+		$id = sprintf( 'TT-%s-%03d', $day, $n );
+	} while ( tales2tiles_find_order( $id ) ); // Retry if a concurrent request already took this number.
+	update_option( $key, $n, false );
 	return $id;
 }
 

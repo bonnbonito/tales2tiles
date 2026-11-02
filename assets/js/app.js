@@ -622,6 +622,11 @@ function stepPreview(p) {
         <div class="pv-grid" id="pvgrid"></div>
       </div>
       <aside class="pv-side">
+        ${d.sides ? `<p class="hint">Photos go in pairs: front, then back of each piece.</p>` : ""}
+        ${d.pin ? `<p class="hint">The dashed ring is the front of the pin. Anything outside it wraps around the edge.</p>` : ""}
+        <p class="note warn" id="lowNote" hidden>Some photos are low resolution and may print blurry. Use a larger original, or zoom out.</p>
+        <p class="line" id="pvline"></p>
+        ${navHTML(addLabel(), editing() ? [TT.urls.cart, "Back to cart"] : [BP().url || TT.urls.order, "Back to product"])}
         <h3 class="pv-help-title">How to use each tool</h3>
         <ul class="pv-help">
           <li>${TOOL.edit}<span><b>Edit</b> Crop, zoom, filters, or fit the whole photo. Use this first if framing looks off.</span></li>
@@ -630,11 +635,6 @@ function stepPreview(p) {
           <li>${TOOL.trash}<span><b>Delete</b> Remove this photo so you can upload another.</span></li>
           ${d.sides || need < 2 ? "" : `<li><span class="pv-help-ico" aria-hidden="true">±</span><span><b>Prints − / +</b> Print the same design on more magnets. Use this instead of re-uploading when several pieces share one photo.</span></li>`}
         </ul>
-        ${d.sides ? `<p class="hint">Photos go in pairs: front, then back of each piece.</p>` : ""}
-        ${d.pin ? `<p class="hint">The dashed ring is the front of the pin. Anything outside it wraps around the edge.</p>` : ""}
-        <p class="note warn" id="lowNote" hidden>Some photos are low resolution and may print blurry. Use a larger original, or zoom out.</p>
-        <p class="line" id="pvline"></p>
-        ${navHTML(addLabel(), editing() ? [TT.urls.cart, "Back to cart"] : [BP().url || TT.urls.order, "Back to product"])}
       </aside>
     </div>`;
   const grid = $("#pvgrid");
@@ -715,8 +715,8 @@ function stepAdjust(p, opts = {}) {
             <div class="ctrl"><label>Style</label><div class="btnrow">
               <button class="iconbtn" data-ts="bold" aria-label="Bold"><b>B</b></button><button class="iconbtn" data-ts="italic" aria-label="Italic"><i>I</i></button>
               <button class="iconbtn" data-ts="shadow" aria-label="Shadow"><span style="text-shadow:1px 2px 2px currentColor">S</span></button><button class="iconbtn" data-ts="outline" aria-label="Outline"><span style="-webkit-text-stroke:1.3px var(--ink);color:transparent;font-weight:700;font-size:17px">O</span></button></div></div>
-            <div class="ctrl"><label>Color</label><div class="swatches">${colors("tc", TEXT_COLORS)}<input type="color" id="tcc" aria-label="Custom text color"></div></div>
-            <div class="ctrl" id="outlineColors" hidden><label>Outline color</label><div class="swatches">${colors("oc", TEXT_COLORS)}<input type="color" id="occ" aria-label="Custom outline color"></div></div>
+            <div class="ctrl"><label>Color</label><div class="swatches">${colors("tc", TEXT_COLORS)}<label class="sw-rainbow" title="Custom color"><input type="color" id="tcc" aria-label="Custom text color"></label></div></div>
+            <div class="ctrl" id="outlineColors" hidden><label>Outline color</label><div class="swatches">${colors("oc", TEXT_COLORS)}<label class="sw-rainbow" title="Custom color"><input type="color" id="occ" aria-label="Custom outline color"></label></div></div>
             ${slider("tsize", "Size", 4, 30, 1)}${slider("top", "Opacity", 20, 100, 1)}
             <div class="btnrow"><button class="btn ghost sm" id="nextText" hidden>Next text</button><button class="btn danger sm" id="delText">Delete text</button></div>
           </div>
@@ -1270,7 +1270,7 @@ const FLOW = [["pending", "Order received", "We're checking your payment."], ["a
 async function renderTrack(pre) {
   const last = pre || ls("tt-last") || "";
   app.innerHTML = `<div class="wrap"><div class="track">
-    <div class="sec-head"><h2>Track your order</h2><p>Enter the order number from your confirmation screen, like TT-2026-0924-483920.</p></div>
+    <div class="sec-head"><h2>Track your order</h2><p>Enter the order number from your confirmation screen, like TT-261102-001.</p></div>
     <form id="tf"><input class="input" id="tid" placeholder="Order number" value="${esc(last)}" autocapitalize="characters" aria-label="Order number"><button class="btn">Track</button></form>
     <div id="tres"></div></div></div>`;
   const show = async id => {

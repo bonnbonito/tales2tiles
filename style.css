@@ -3,7 +3,7 @@ Theme Name: Tales to Tiles
 Theme URI: https://talestotiles.com
 Author: Tales to Tiles
 Description: Classic theme for Tales to Tiles photo magnets: editable home page, product cards with photo upload, preview and editor (crop, filters, text), cart, GCash/BPI checkout with receipt upload, discount codes, order emails, order tracking, a shop-owner dashboard with print layouts, and optional Google Drive storage. Products are managed under Products; shop, payment and discount settings under Pages → Order.
-Version: 2.7.10
+Version: 2.7.14
 Requires at least: 6.4
 Requires PHP: 8.0
 License: GPL-2.0-or-later
@@ -579,6 +579,9 @@ a.sr:focus{position:fixed;top:8px;left:8px;z-index:100;width:auto;height:auto;cl
 .sw.sm{width:30px;height:30px;border-width:2px}
 .sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--rose)}
 .swatches input[type=color]{width:30px;height:30px;padding:0;border:1px solid var(--line);border-radius:50%;background:none;cursor:pointer;overflow:hidden}
+/* Custom color: real circular rainbow chip; native input is invisible on top (avoids the square well). */
+.swatches .sw-rainbow{position:relative;display:block;width:30px;height:30px;flex:0 0 auto;border-radius:50%;background:conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);cursor:pointer;overflow:hidden}
+.swatches .sw-rainbow input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
 #bgs{margin-top:10px}
 label.check{display:flex!important;gap:8px;align-items:center;color:var(--ink)!important;cursor:pointer}
 .look-img{position:relative;display:block;width:100%;border-radius:8px;overflow:hidden}
@@ -645,8 +648,8 @@ button.pimg,button.opt-art{border:0;padding:0;cursor:zoom-in;width:100%}
 .pv-tile.empty:hover{border-color:var(--rose)}
 .pv-side{position:sticky;top:96px;background:var(--blush);border-radius:20px;padding:20px}
 .pv-count{font-size:18px;margin:0 0 12px}
-.pv-help-title{margin:0 0 10px;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
-.pv-help{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.35;color:var(--ink-2)}
+.pv-help-title{margin:22px 0 10px;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+.pv-help{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;font-size:13.5px;line-height:1.35;color:var(--ink-2)}
 .pv-help li{display:flex;gap:8px;align-items:flex-start}
 .pv-help li > svg,.pv-help-ico{flex:0 0 auto;width:16px;height:16px;margin-top:2px}
 .pv-help-ico{display:grid;place-items:center;font-size:13px;font-weight:600;line-height:1;color:var(--ink)}
