@@ -443,15 +443,21 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 	foreach ( array( 'name', 'phone', 'email', 'address', 'city', 'province', 'postal' ) as $field ) {
 		$customer[ $field ] = sanitize_text_field( $raw[ $field ] ?? '' );
 	}
-	$customer['notes'] = sanitize_textarea_field( $raw['notes'] ?? '' );
+	$customer['notes']  = sanitize_textarea_field( $raw['notes'] ?? '' );
+	$customer['meetup'] = in_array( (string) ( $raw['meetup'] ?? '' ), array( '1', 'true' ), true ); // Pick up: no shipping address.
 
 	$valid = mb_strlen( $customer['name'] ) >= 2
 		&& preg_match( '/^(09|\+639)\d{9}$/', preg_replace( '/[\s-]/', '', $customer['phone'] ) )
-		&& ( '' === $customer['email'] || is_email( $customer['email'] ) )
-		&& mb_strlen( $customer['address'] ) >= 6
-		&& mb_strlen( $customer['city'] ) >= 2
-		&& mb_strlen( $customer['province'] ) >= 2
-		&& preg_match( '/^\d{4}$/', $customer['postal'] );
+		&& ( '' === $customer['email'] || is_email( $customer['email'] ) );
+	if ( $customer['meetup'] ) {
+		$customer['address'] = $customer['city'] = $customer['province'] = $customer['postal'] = '';
+	} else {
+		$valid = $valid
+			&& mb_strlen( $customer['address'] ) >= 6
+			&& mb_strlen( $customer['city'] ) >= 2
+			&& mb_strlen( $customer['province'] ) >= 2
+			&& preg_match( '/^\d{4}$/', $customer['postal'] );
+	}
 	if ( ! $valid ) {
 		return tales2tiles_error( __( 'Check your contact and address details.', 'tales2tiles' ) );
 	}
@@ -558,7 +564,7 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 		}
 		$discount = tales2tiles_coupon_discount( $coupon, $subtotal );
 	}
-	$shipping = $config['shop']['shippingFee'];
+	$shipping = $customer['meetup'] ? 0.0 : $config['shop']['shippingFee']; // Meet up: no shipping fee.
 	$now      = time() * 1000;
 
 	$order = array(

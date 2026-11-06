@@ -30,7 +30,7 @@ else :
 							<?php endif; ?>
 						</span>
 						<span class="og-name"><?php echo esc_html( $tales2tiles_p['name'] ); ?></span>
-						<span class="og-price"><b><?php echo esc_html( $tales2tiles_price ); ?></b> <?php echo esc_html( $tales2tiles_note ); ?></span>
+						<span class="og-price"><b><?php echo esc_html( $tales2tiles_price ); ?></b> <?php echo wp_kses( $tales2tiles_note, array( 'b' => array() ) ); ?></span>
 					</a>
 				<?php endforeach; ?>
 			</div>

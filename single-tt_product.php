@@ -68,7 +68,7 @@ $tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
 
 		<div class="pdp-info">
 			<h1><?php echo esc_html( $tales2tiles_p['name'] ); ?></h1>
-			<div class="pdp-price"><strong id="pdpPrice"><?php echo esc_html( $tales2tiles_price ); ?></strong><span id="pdpNote"><?php echo esc_html( $tales2tiles_note ); ?></span></div>
+			<div class="pdp-price"><strong id="pdpPrice"><?php echo esc_html( $tales2tiles_price ); ?></strong><span id="pdpNote"><?php echo wp_kses( $tales2tiles_note, array( 'b' => array() ) ); ?></span></div>
 			<?php if ( $tales2tiles_p['blurb'] ) : ?>
 				<p class="pdp-blurb"><?php echo esc_html( $tales2tiles_p['blurb'] ); ?></p>
 			<?php endif; ?>

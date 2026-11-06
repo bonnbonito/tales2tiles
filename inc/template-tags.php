@@ -112,7 +112,8 @@ function tales2tiles_set_price( $p, $qty = null ) {
 	$qty = $qty ?? tales2tiles_variants( $p )[0][0];
 	/* translators: 1: number of pieces, 2: item word, e.g. "magnets". */
 	$word = 1 === $qty ? preg_replace( '/s$/', '', $p['unitWord'] ) : $p['unitWord']; // "for 1 magnet".
-	return array( '₱' . number_format( tales2tiles_unit_price( $p, $qty ) * $qty, 2 ), sprintf( __( 'for %1$d %2$s', 'tales2tiles' ), $qty, $word ) );
+	/* translators: 1: bold HTML quantity, 2: item word, e.g. "magnets". */
+	return array( '₱' . number_format( tales2tiles_unit_price( $p, $qty ) * $qty, 2 ), sprintf( __( 'for %1$s %2$s', 'tales2tiles' ), '<b>' . (int) $qty . '</b>', esc_html( $word ) ) );
 }
 
 /**

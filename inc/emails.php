@@ -42,10 +42,11 @@ function tales2tiles_order_email_html( $order, $intro, $owner ) {
 		/* translators: %s: discount code. */
 		$rows .= $total( sprintf( __( 'Discount (%s)', 'tales2tiles' ), $order['coupon'] ), '−' . tales2tiles_peso2( $order['discount'] ) );
 	}
-	$rows .= $total( __( 'Shipping fee', 'tales2tiles' ), null === $order['shipping'] ? __( 'To follow, based on location', 'tales2tiles' ) : tales2tiles_peso2( $order['shipping'] ) );
-	$rows .= $total( __( 'Paid', 'tales2tiles' ), tales2tiles_peso2( $order['total'] ), true );
+	$meetup = ! empty( $c['meetup'] );
+	$rows  .= $total( __( 'Shipping fee', 'tales2tiles' ), $meetup ? __( 'Meet up', 'tales2tiles' ) : ( null === $order['shipping'] ? __( 'To follow, based on location', 'tales2tiles' ) : tales2tiles_peso2( $order['shipping'] ) ) );
+	$rows  .= $total( __( 'Paid', 'tales2tiles' ), tales2tiles_peso2( $order['total'] ), true );
 
-	$address = esc_html( $c['name'] ) . '<br>' . esc_html( $c['address'] ) . '<br>' . esc_html( $c['city'] . ', ' . $c['province'] . ' ' . $c['postal'] );
+	$address = esc_html( $c['name'] ) . '<br>' . ( $meetup ? esc_html__( 'Meet up', 'tales2tiles' ) : esc_html( $c['address'] ) . '<br>' . esc_html( $c['city'] . ', ' . $c['province'] . ' ' . $c['postal'] ) );
 	if ( $owner ) {
 		$address .= '<br>' . esc_html( $c['phone'] ) . ( $c['email'] ? '<br>' . esc_html( $c['email'] ) : '' );
 	}
@@ -59,7 +60,7 @@ function tales2tiles_order_email_html( $order, $intro, $owner ) {
 		/* translators: %s: order number. */
 		. '<h2 style="font-size:18px;margin:20px 0 8px">' . esc_html( sprintf( __( 'Order %s', 'tales2tiles' ), $order['id'] ) ) . '</h2>'
 		. '<table style="width:100%;border-collapse:collapse">' . $rows . '</table>'
-		. '<h3 style="font-size:15px;margin:20px 0 6px">' . esc_html__( 'Deliver to', 'tales2tiles' ) . '</h3><p style="margin:0">' . $address . '</p>'
+		. '<h3 style="font-size:15px;margin:20px 0 6px">' . esc_html( $meetup ? __( 'Meet up', 'tales2tiles' ) : __( 'Deliver to', 'tales2tiles' ) ) . '</h3><p style="margin:0">' . $address . '</p>'
 		. '<h3 style="font-size:15px;margin:20px 0 6px">' . esc_html__( 'Payment', 'tales2tiles' ) . '</h3><p style="margin:0">' . $payment . '</p>'
 		. ( $c['notes'] ? '<h3 style="font-size:15px;margin:20px 0 6px">' . esc_html__( 'Note', 'tales2tiles' ) . '</h3><p style="margin:0">' . nl2br( esc_html( $c['notes'] ) ) . '</p>' : '' )
 		. '<p style="margin-top:24px">' . $link . '</p>'
