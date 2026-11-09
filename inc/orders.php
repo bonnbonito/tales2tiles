@@ -448,7 +448,7 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 
 	$valid = mb_strlen( $customer['name'] ) >= 2
 		&& preg_match( '/^(09|\+639)\d{9}$/', preg_replace( '/[\s-]/', '', $customer['phone'] ) )
-		&& ( '' === $customer['email'] || is_email( $customer['email'] ) );
+		&& is_email( $customer['email'] );
 	if ( $customer['meetup'] ) {
 		$customer['address'] = $customer['city'] = $customer['province'] = $customer['postal'] = '';
 	} else {

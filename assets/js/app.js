@@ -990,7 +990,7 @@ function stepCart(p) {
 const FIELDS = [
   ["name", "Full name", "text", "name", "Enter your full name.", v => v.trim().length >= 2],
   ["phone", "Mobile number", "tel", "tel", "Use a PH mobile number like 0917 123 4567.", v => /^(09|\+639)\d{9}$/.test(v.replace(/[\s-]/g, ""))],
-  ["email", "Email (optional, for your order confirmation)", "email", "email", "Check the email address.", v => !v.trim() || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())],
+  ["email", "Email", "email", "email", "Enter a valid email address.", v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())],
   ["address", "House no., street, barangay", "text", "street-address", "Enter your street and barangay.", v => v.trim().length >= 6],
   ["city", "City / municipality", "text", "address-level2", "Enter your city.", v => v.trim().length >= 2],
   ["province", "Province", "text", "address-level1", "Enter your province.", v => v.trim().length >= 2],
@@ -999,7 +999,7 @@ const FIELDS = [
 function stepDetails(p) {
   const f = ([k, l, t, ac, msg], cls = "") => `<div class="field ${cls}" data-f="${k}"><label for="f-${k}">${l}</label><input id="f-${k}" type="${t}" autocomplete="${ac}" value="${esc(S.d[k] || "")}" ${k === "postal" || k === "phone" ? 'inputmode="numeric"' : ""}><div class="msg">${msg}</div></div>`;
   const back = !!savedDetails().name;
-  p.innerHTML = `<h2>${back ? `Welcome back${S.d.name ? ", " + esc(S.d.name.split(" ")[0]) : ""}!` : "Where should we send it?"}</h2><p class="sub">${back ? "We filled in your details from last time. Just check they're still right." : "Choose delivery or meet up, then fill in your details."}</p>
+  p.innerHTML = `<h2>${back ? `Welcome back${S.d.name ? ", " + esc(S.d.name.split(" ")[0]) : ""}!` : "Where should we send it?"}</h2><p class="sub">${back ? "We filled in your details from last time. Just check they're still right." : "We'll email you when your order ships."}</p>
     <div class="form">
       <h3>Contact</h3>${f(FIELDS[0], "full")}${f(FIELDS[1])}${f(FIELDS[2])}
       <label class="check full"><input type="checkbox" id="f-meetup"${S.meetup ? " checked" : ""}> <span>Meet up<small>I'll pick up the order — no shipping address needed.</small></span></label>
