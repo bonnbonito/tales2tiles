@@ -148,7 +148,7 @@ add_action( 'add_meta_boxes', 'tales2tiles_add_field_box', 10, 2 );
 function tales2tiles_field_box_html( $post, $metabox ) {
 	$box = $metabox['args']['box'];
 	wp_nonce_field( 'tales2tiles_' . $box, 'tales2tiles_' . $box . '_nonce' );
-	echo '<style>.tt-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:8px;background:#fff}.tt-row label{display:flex;flex-direction:column;gap:2px}.tt-row .tt-wide{flex:1 1 100%}.tt-row-actions{margin-left:auto}.tt-image img{max-width:200px;height:auto;display:block;margin-bottom:8px}.tt-image img[src=""]{display:none}.tt-gallery-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tt-gallery-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:4px}.tt-focus{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}.tt-focus-pick{position:relative;display:inline-block;cursor:crosshair;line-height:0;touch-action:none;user-select:none}.tt-focus-pick img{max-width:320px;max-height:240px;border-radius:4px}.tt-focus-dot{position:absolute;width:18px;height:18px;margin:-11px 0 0 -11px;border:2px solid #fff;border-radius:50%;background:#2271b1;box-shadow:0 0 0 2px #2271b1,0 1px 4px rgba(0,0,0,.5);pointer-events:none}.tt-focus figure{margin:0;text-align:center;font-size:12px;color:#646970}.tt-focus-crop{overflow:hidden;border-radius:4px;background:#ddd;margin-bottom:4px}.tt-focus-crop img{width:100%;height:100%;object-fit:cover;display:block}.tt-focus-crop.wide{width:200px;aspect-ratio:16/10}.tt-focus-crop.square{width:125px;aspect-ratio:1}</style>';
+	echo '<style>.tt-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid #c3c4c7;padding:8px 12px;margin-bottom:8px;background:#fff}.tt-row label{display:flex;flex-direction:column;gap:2px}.tt-row .tt-wide{flex:1 1 100%}.tt-row-actions{margin-left:auto}.tt-image img{max-width:200px;height:auto;display:block;margin-bottom:8px}.tt-image img[src=""]{display:none}.tt-gallery-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tt-gallery-thumbs img{width:72px;height:72px;object-fit:cover;border-radius:4px}.tt-focus{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}.tt-focus-pick{position:relative;display:inline-block;cursor:crosshair;line-height:0;touch-action:none;user-select:none}.tt-focus-pick img{max-width:320px;max-height:240px;border-radius:4px}.tt-focus-dot{position:absolute;width:18px;height:18px;margin:-11px 0 0 -11px;border:2px solid #fff;border-radius:50%;background:#2271b1;box-shadow:0 0 0 2px #2271b1,0 1px 4px rgba(0,0,0,.5);pointer-events:none}.tt-focus figure{margin:0;text-align:center;font-size:12px;color:#646970}.tt-focus-crop{overflow:hidden;border-radius:4px;background:#ddd;margin-bottom:4px}.tt-focus-crop img{width:100%;height:100%;object-fit:cover;display:block}.tt-focus-crop.wide{width:200px;aspect-ratio:16/10}.tt-focus-crop.square{width:125px;aspect-ratio:1}.tt-icons{display:flex;flex-wrap:wrap;gap:4px}.tt-icon{width:34px;height:34px;padding:0;display:grid;place-items:center;border:1px solid #c3c4c7;background:#fff;border-radius:4px;cursor:pointer;color:#1d2327}.tt-icon[aria-pressed=true]{border-color:#2271b1;box-shadow:0 0 0 1px #2271b1;color:#2271b1}.tt-icon svg{width:20px;height:20px}</style>';
 	foreach ( call_user_func( tales2tiles_field_boxes()[ $box ]['sections'] ) as $section => $fields ) {
 		echo '<h3>' . esc_html( $section ) . '</h3><table class="form-table" role="presentation">';
 		foreach ( $fields as $key => $field ) {
@@ -259,15 +259,34 @@ function tales2tiles_list_row( $name, $columns, $row ) {
 	foreach ( $columns as $c => $column ) {
 		list( $type, $label ) = $column;
 		$col                  = $name . '[' . $c . ']';
-		$value                = $row[ $c ] ?? ( 'select' === $type ? $column[2] : '' );
+		$value                = $row[ $c ] ?? ( 'select' === $type || 'icon' === $type ? ( $column[2] ?? '' ) : '' );
 		if ( 'select' === $type ) {
 			echo '<label>' . esc_html( $label ) . '<select name="' . esc_attr( $col ) . '">';
 			foreach ( $column[3]['choices'] as $choice => $choice_label ) {
 				echo '<option value="' . esc_attr( $choice ) . '"' . selected( $value, $choice, false ) . '>' . esc_html( $choice_label ) . '</option>';
 			}
 			echo '</select></label>';
-		} elseif ( 'html' === $type ) {
-			printf( '<label class="tt-wide">%1$s<textarea class="large-text" rows="3" name="%2$s">%3$s</textarea></label>', esc_html( $label ), esc_attr( $col ), esc_textarea( $value ) );
+		} elseif ( 'icon' === $type ) {
+			echo '<label>' . esc_html( $label ) . '<span class="tt-icons"><input type="hidden" name="' . esc_attr( $col ) . '" value="' . esc_attr( $value ) . '">';
+			foreach ( tales2tiles_icon_choices() as $name => $choice_label ) {
+				echo '<button type="button" class="tt-icon" data-icon="' . esc_attr( $name ) . '" title="' . esc_attr( $choice_label ) . '" aria-label="' . esc_attr( $choice_label ) . '" aria-pressed="' . ( $value === $name ? 'true' : 'false' ) . '">';
+				echo tales2tiles_icon( $name ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG.
+				echo '</button>';
+			}
+			echo '</span></label>';
+		} elseif ( 'html' === $type || 'textarea' === $type ) {
+			printf( '<label class="tt-wide">%1$s<textarea class="large-text" rows="4" name="%2$s">%3$s</textarea></label>', esc_html( $label ), esc_attr( $col ), esc_textarea( $value ) );
+		} elseif ( 'image' === $type ) {
+			$src = $value ? (string) wp_get_attachment_image_url( (int) $value, 'medium' ) : '';
+			printf(
+				'<label>%1$s<div class="tt-image"><img src="%2$s" alt=""><input type="hidden" name="%3$s" value="%4$s"><button type="button" class="button tt-pick">%5$s</button> <button type="button" class="button-link tt-reset">%6$s</button></div></label>',
+				esc_html( $label ),
+				esc_url( $src ),
+				esc_attr( $col ),
+				esc_attr( $value ),
+				esc_html__( 'Choose image', 'tales2tiles' ),
+				esc_html__( 'Remove', 'tales2tiles' )
+			);
 		} elseif ( 'text' === $type ) {
 			printf( '<label class="tt-wide">%1$s<input type="text" class="large-text" name="%2$s" value="%3$s"></label>', esc_html( $label ), esc_attr( $col ), esc_attr( $value ) );
 		} else { // int, number, color.
@@ -294,6 +313,8 @@ function tales2tiles_sanitize_field( $field, $value ) {
 	switch ( $field[0] ) {
 		case 'select':
 			return isset( $field[3]['choices'][ $value ] ) ? $value : (string) $field[2];
+		case 'icon':
+			return isset( tales2tiles_icon_choices()[ $value ] ) ? $value : (string) $field[2];
 		case 'gallery':
 			return implode( ',', array_filter( array_map( 'absint', explode( ',', $value ) ) ) );
 		case 'checkbox':

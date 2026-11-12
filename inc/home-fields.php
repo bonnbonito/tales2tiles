@@ -45,14 +45,24 @@ function tales2tiles_home_fields() {
 			'products_sub'   => array( 'text', __( 'Subheading', 'tales2tiles' ), __( 'Choose the perfect way to keep your memories close.', 'tales2tiles' ) ),
 		),
 		__( 'How it works', 'tales2tiles' ) => array(
-			'how_tag1'    => array( 'text', __( 'Tagline, line 1', 'tales2tiles' ), __( 'Every photo', 'tales2tiles' ) ),
-			'how_tag2'    => array( 'text', __( 'Tagline, line 2', 'tales2tiles' ), __( 'tells a story', 'tales2tiles' ) ),
-			'step1_title' => array( 'text', __( 'Step 1 title', 'tales2tiles' ), __( '1. Order', 'tales2tiles' ) ),
-			'step1_text'  => array( 'text', __( 'Step 1 text', 'tales2tiles' ), __( 'Choose your product and upload your photos', 'tales2tiles' ) ),
-			'step2_title' => array( 'text', __( 'Step 2 title', 'tales2tiles' ), __( '2. We Create', 'tales2tiles' ) ),
-			'step2_text'  => array( 'text', __( 'Step 2 text', 'tales2tiles' ), __( 'We print and craft your keepsakes with care', 'tales2tiles' ) ),
-			'step3_title' => array( 'text', __( 'Step 3 title', 'tales2tiles' ), __( '3. We Deliver', 'tales2tiles' ) ),
-			'step3_text'  => array( 'text', __( 'Step 3 text', 'tales2tiles' ), __( 'Straight to your door', 'tales2tiles' ) ),
+			'how_tag1'  => array( 'text', __( 'Tagline, line 1', 'tales2tiles' ), __( 'Every photo', 'tales2tiles' ) ),
+			'how_tag2'  => array( 'text', __( 'Tagline, line 2', 'tales2tiles' ), __( 'tells a story', 'tales2tiles' ) ),
+			'how_steps' => array(
+				'list',
+				__( 'Steps', 'tales2tiles' ),
+				array(
+					array( 'gift', __( '1. Choose an item', 'tales2tiles' ) ),
+					array( 'upload', __( '2. Upload photo', 'tales2tiles' ) ),
+					array( 'cart', __( '3. Place your order', 'tales2tiles' ) ),
+					array( 'sparkle', __( '4. We create', 'tales2tiles' ) ),
+					array( 'truck', __( '5. We ship', 'tales2tiles' ) ),
+					array( 'clock', __( '6. Track order', 'tales2tiles' ) ),
+				),
+				array(
+					'columns' => array( array( 'icon', __( 'Icon', 'tales2tiles' ), 'check' ), array( 'text', __( 'Title', 'tales2tiles' ) ) ),
+					'add'     => __( 'Add step', 'tales2tiles' ),
+				),
+			),
 		),
 		__( 'FAQs', 'tales2tiles' )         => array(
 			'faq_title' => array( 'text', __( 'Heading', 'tales2tiles' ), __( 'FAQs', 'tales2tiles' ) ),

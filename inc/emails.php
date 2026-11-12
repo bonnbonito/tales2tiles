@@ -43,14 +43,23 @@ function tales2tiles_order_email_html( $order, $intro, $owner ) {
 		$rows .= $total( sprintf( __( 'Discount (%s)', 'tales2tiles' ), $order['coupon'] ), '−' . tales2tiles_peso2( $order['discount'] ) );
 	}
 	$meetup = ! empty( $c['meetup'] );
+	$vias   = array(
+		'facebook' => __( 'Facebook', 'tales2tiles' ),
+		'ig'       => __( 'IG', 'tales2tiles' ),
+		'viber'    => __( 'Viber', 'tales2tiles' ),
+	);
 	$rows  .= $total( __( 'Shipping fee', 'tales2tiles' ), $meetup ? __( 'Meet up', 'tales2tiles' ) : ( null === $order['shipping'] ? __( 'To follow, based on location', 'tales2tiles' ) : tales2tiles_peso2( $order['shipping'] ) ) );
 	$rows  .= $total( __( 'Paid', 'tales2tiles' ), tales2tiles_peso2( $order['total'] ), true );
 
-	$address = esc_html( $c['name'] ) . '<br>' . ( $meetup ? esc_html__( 'Meet up', 'tales2tiles' ) : esc_html( $c['address'] ) . '<br>' . esc_html( $c['city'] . ', ' . $c['province'] . ' ' . $c['postal'] ) );
+	$channel = trim( ( $vias[ $c['via'] ?? '' ] ?? '' ) . ( ( $c['user'] ?? '' ) !== '' ? ' · ' . $c['user'] : '' ), " ·" );
+	$address = esc_html( $c['name'] ) . '<br>' . ( $meetup
+		? esc_html__( 'Meet up', 'tales2tiles' ) . ( $channel ? '<br>' . esc_html( $channel ) : '' )
+		: esc_html( $c['address'] ) . '<br>' . esc_html( $c['city'] . ', ' . $c['province'] . ' ' . $c['postal'] ) );
 	if ( $owner ) {
 		$address .= '<br>' . esc_html( $c['phone'] ) . ( $c['email'] ? '<br>' . esc_html( $c['email'] ) : '' );
 	}
-	$payment = esc_html( $order['payMethod'] . ( $order['payRef'] ? ' · ' . __( 'Ref.', 'tales2tiles' ) . ' ' . $order['payRef'] : '' ) );
+	$payment = trim( $order['payMethod'] . ( $order['payRef'] ? ' · ' . __( 'Ref.', 'tales2tiles' ) . ' ' . $order['payRef'] : '' ), " ·" );
+	$payment = esc_html( '' === $payment ? __( 'Receipt attached', 'tales2tiles' ) : $payment );
 	$link    = $owner
 		? '<a href="' . esc_url( tales2tiles_page_url( 'shop-orders' ) ) . '">' . esc_html__( 'Open the order in your dashboard', 'tales2tiles' ) . '</a>'
 		: '<a href="' . esc_url( add_query_arg( 'order', $order['id'], tales2tiles_page_url( 'track' ) ) ) . '">' . esc_html__( 'Track your order', 'tales2tiles' ) . '</a>';

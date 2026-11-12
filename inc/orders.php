@@ -445,14 +445,23 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 	}
 	$customer['notes']  = sanitize_textarea_field( $raw['notes'] ?? '' );
 	$customer['meetup'] = in_array( (string) ( $raw['meetup'] ?? '' ), array( '1', 'true' ), true ); // Pick up: no shipping address.
+	$vias               = array(
+		'facebook' => 'Facebook',
+		'ig'       => 'IG',
+		'viber'    => 'Viber',
+	);
+	$customer['via']    = isset( $vias[ $raw['via'] ?? '' ] ) ? $raw['via'] : '';
+	$customer['user']   = sanitize_text_field( $raw['user'] ?? '' );
 
 	$valid = mb_strlen( $customer['name'] ) >= 2
 		&& preg_match( '/^(09|\+639)\d{9}$/', preg_replace( '/[\s-]/', '', $customer['phone'] ) )
 		&& is_email( $customer['email'] );
 	if ( $customer['meetup'] ) {
 		$customer['address'] = $customer['city'] = $customer['province'] = $customer['postal'] = '';
+		$valid               = $valid && $customer['via'] && mb_strlen( $customer['user'] ) >= 2 && mb_strlen( $customer['user'] ) <= 40;
 	} else {
-		$valid = $valid
+		$customer['via'] = $customer['user'] = '';
+		$valid           = $valid
 			&& mb_strlen( $customer['address'] ) >= 6
 			&& mb_strlen( $customer['city'] ) >= 2
 			&& mb_strlen( $customer['province'] ) >= 2
@@ -462,8 +471,8 @@ function tales2tiles_rest_create_order( WP_REST_Request $request ) {
 		return tales2tiles_error( __( 'Check your contact and address details.', 'tales2tiles' ) );
 	}
 
-	$pay_method = (string) $request->get_param( 'payMethod' );
-	if ( ! in_array( $pay_method, array( 'GCash', 'BPI' ), true ) ) {
+	$pay_method = sanitize_text_field( (string) $request->get_param( 'payMethod' ) );
+	if ( '' !== $pay_method && ! in_array( $pay_method, array( 'GCash', 'BPI' ), true ) ) {
 		return tales2tiles_error( __( 'Choose how you paid.', 'tales2tiles' ) );
 	}
 

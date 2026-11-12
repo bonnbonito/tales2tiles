@@ -86,22 +86,9 @@ get_header();
 					<span><?php echo esc_html( tales2tiles_home( 'how_tag1' ) ); ?></span><span><?php echo esc_html( tales2tiles_home( 'how_tag2' ) ); ?></span>
 				</div><?php echo tales2tiles_icon( 'smallHeart' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</div>
-			<div class="bstep">
-				<?php echo tales2tiles_icon( 'phone' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><b><?php echo esc_html( tales2tiles_home( 'step1_title' ) ); ?></b>
-				<p><?php echo esc_html( tales2tiles_home( 'step1_text' ) ); ?></p>
-			</div>
-			<div class="barrow"><?php echo tales2tiles_icon( 'arrow' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			</div>
-			<div class="bstep">
-				<?php echo tales2tiles_icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><b><?php echo esc_html( tales2tiles_home( 'step2_title' ) ); ?></b>
-				<p><?php echo esc_html( tales2tiles_home( 'step2_text' ) ); ?></p>
-			</div>
-			<div class="barrow"><?php echo tales2tiles_icon( 'arrow' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			</div>
-			<div class="bstep">
-				<?php echo tales2tiles_icon( 'truck' ); // phpcs:ignore WordPress.Security.EscapeOutput ?><b><?php echo esc_html( tales2tiles_home( 'step3_title' ) ); ?></b>
-				<p><?php echo esc_html( tales2tiles_home( 'step3_text' ) ); ?></p>
-			</div>
+			<?php foreach ( (array) tales2tiles_home( 'how_steps' ) as $tales2tiles_step ) : ?>
+				<div class="bstep"><?php echo tales2tiles_icon( $tales2tiles_step[0] ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?><b><?php echo esc_html( $tales2tiles_step[1] ?? '' ); ?></b></div>
+			<?php endforeach; ?>
 		</div>
 	</section>
 

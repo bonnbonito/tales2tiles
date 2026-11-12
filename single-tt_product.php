@@ -1,7 +1,8 @@
 <?php
 /**
  * Single product page (/products/<slug>/).
- * Product content: Products → (this product) → "Product page". Shared sections below it: Pages → Order.
+ * Product content: Products → (this product) → "Product page", including its photo sections.
+ * Why choose us and the consent switch: Pages → Order.
  * assets/js/app.js (TT.view = 'product') wires the pieces dropdown, price and "Upload pictures".
  *
  * @package Tales2Tiles
@@ -27,10 +28,6 @@ endif;
 $tales2tiles_variants = tales2tiles_variants( $tales2tiles_p );
 list( $tales2tiles_price, $tales2tiles_note ) = tales2tiles_set_price( $tales2tiles_p, $tales2tiles_variants[0][0] );
 $tales2tiles_slides = tales2tiles_product_slides( $tales2tiles_p );
-$tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
-	$id = (int) $tales2tiles_of( "pp_s{$n}_img" );
-	return $id ? (string) wp_get_attachment_image_url( $id, 'large' ) : tales2tiles_img( 'hero' );
-};
 ?>
 <main id="app" class="pdp-page" data-product="<?php echo esc_attr( $tales2tiles_key ); ?>">
 	<div class="wrap pdp">
@@ -128,37 +125,36 @@ $tales2tiles_section_img = static function ( $n ) use ( $tales2tiles_of ) {
 		</div>
 	</div>
 
-	<?php $tales2tiles_how = (array) $tales2tiles_of( 'pp_how' ); ?>
+	<?php $tales2tiles_how = '1' === $tales2tiles_pf( 'show_how' ) ? (array) tales2tiles_home( 'how_steps' ) : array(); ?>
 	<?php if ( $tales2tiles_how ) : ?>
 		<section class="pdp-section pdp-how">
 			<div class="wrap">
-				<h2><?php echo esc_html( $tales2tiles_of( 'pp_how_title' ) ); ?></h2>
+				<h2><?php esc_html_e( 'How It Works', 'tales2tiles' ); ?></h2>
 				<div class="pdp-cols">
 					<?php foreach ( $tales2tiles_how as $tales2tiles_s ) : ?>
-						<div><span class="pdp-ico"><?php echo $tales2tiles_icon( $tales2tiles_s[0] ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></span><h3><?php echo esc_html( $tales2tiles_s[1] ?? '' ); ?></h3><p><?php echo esc_html( $tales2tiles_s[2] ?? '' ); ?></p></div>
+						<div><span class="pdp-ico"><?php echo $tales2tiles_icon( $tales2tiles_s[0] ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></span><h3><?php echo esc_html( $tales2tiles_s[1] ?? '' ); ?></h3></div>
 					<?php endforeach; ?>
 				</div>
 			</div>
 		</section>
 	<?php endif; ?>
 
-	<?php foreach ( array( 1, 2 ) as $tales2tiles_n ) : ?>
-		<?php $tales2tiles_points = (array) $tales2tiles_of( "pp_s{$tales2tiles_n}_points" ); ?>
-		<?php if ( $tales2tiles_of( "pp_s{$tales2tiles_n}_title" ) ) : ?>
-			<section class="pdp-section pdp-split<?php echo 2 === $tales2tiles_n ? ' flip' : ''; ?>">
-				<div class="wrap">
-					<div class="pdp-split-text">
-						<h2><span class="pdp-ico sm"><?php echo $tales2tiles_icon( $tales2tiles_of( "pp_s{$tales2tiles_n}_icon" ) ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></span><?php echo esc_html( $tales2tiles_of( "pp_s{$tales2tiles_n}_title" ) ); ?></h2>
-						<ul>
-							<?php foreach ( $tales2tiles_points as $tales2tiles_pt ) : ?>
-								<li><?php echo $tales2tiles_icon( 'check' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?><?php echo esc_html( $tales2tiles_pt[0] ?? '' ); ?></li>
-							<?php endforeach; ?>
-						</ul>
-					</div>
-					<img src="<?php echo esc_url( $tales2tiles_section_img( $tales2tiles_n ) ); ?>" alt="" loading="lazy">
+	<?php foreach ( (array) $tales2tiles_pf( 'sections' ) as $tales2tiles_i => $tales2tiles_s ) : ?>
+		<?php if ( empty( $tales2tiles_s[0] ) ) { continue; } ?>
+		<?php $tales2tiles_img = ( $tales2tiles_id = (int) ( $tales2tiles_s[3] ?? 0 ) ) ? (string) wp_get_attachment_image_url( $tales2tiles_id, 'large' ) : tales2tiles_img( 'hero' ); ?>
+		<section class="pdp-section pdp-split<?php echo $tales2tiles_i % 2 ? ' flip' : ''; ?>">
+			<div class="wrap">
+				<div class="pdp-split-text">
+					<h2><span class="pdp-ico sm"><?php echo $tales2tiles_icon( $tales2tiles_s[1] ?? '' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></span><?php echo esc_html( $tales2tiles_s[0] ); ?></h2>
+					<ul>
+						<?php foreach ( array_filter( array_map( 'trim', explode( "\n", (string) ( $tales2tiles_s[2] ?? '' ) ) ) ) as $tales2tiles_pt ) : ?>
+							<li><?php echo $tales2tiles_icon( 'check' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?><?php echo esc_html( $tales2tiles_pt ); ?></li>
+						<?php endforeach; ?>
+					</ul>
 				</div>
-			</section>
-		<?php endif; ?>
+				<img src="<?php echo esc_url( $tales2tiles_img ); ?>" alt="" loading="lazy">
+			</div>
+		</section>
 	<?php endforeach; ?>
 
 	<?php $tales2tiles_why = (array) $tales2tiles_of( 'pp_why' ); ?>

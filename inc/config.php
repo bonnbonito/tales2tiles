@@ -46,6 +46,7 @@ function tales2tiles_config_defaults() {
 			'bpi'         => array(
 				'name'    => 'Tales to Tiles',
 				'account' => 'XXXX XXXX 1234',
+				'qr'      => '',
 			),
 			'social'      => array(
 				'instagram' => 'https://instagram.com/talestotiles',

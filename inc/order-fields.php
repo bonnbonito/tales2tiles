@@ -21,11 +21,8 @@ function tales2tiles_order_fields() {
 	$sections = array(
 		__( 'Payment and shipping', 'tales2tiles' ) => array(
 			'shippingFee'  => array( 'number', __( 'Shipping fee (₱)', 'tales2tiles' ), (string) $shop['shippingFee'], array( 'help' => __( 'Leave blank to say "based on location" and message customers the fee.', 'tales2tiles' ) ) ),
-			'gcash_name'   => array( 'text', __( 'GCash account name', 'tales2tiles' ), $shop['gcash']['name'] ),
-			'gcash_number' => array( 'text', __( 'GCash number', 'tales2tiles' ), $shop['gcash']['number'] ),
 			'gcash_qr'     => array( 'image', __( 'GCash QR code', 'tales2tiles' ), '' ),
-			'bpi_name'     => array( 'text', __( 'BPI account name', 'tales2tiles' ), $shop['bpi']['name'] ),
-			'bpi_account'  => array( 'text', __( 'BPI account number', 'tales2tiles' ), $shop['bpi']['account'] ),
+			'bpi_qr'       => array( 'image', __( 'BPI QR code', 'tales2tiles' ), '' ),
 		),
 		__( 'Contact and social links (footer)', 'tales2tiles' ) => array(
 			'email'        => array( 'email', __( 'Contact email', 'tales2tiles' ), $shop['email'], array( 'help' => __( 'Shown in the footer; customers\' replies to their confirmation email go here.', 'tales2tiles' ) ) ),
@@ -69,42 +66,6 @@ function tales2tiles_order_fields() {
 	);
 
 	// Shared by every product page (single-tt_product.php), below the product details.
-	$sections[ __( 'Product pages: How it works', 'tales2tiles' ) ] = array(
-		'pp_how_title' => array( 'text', __( 'Heading', 'tales2tiles' ), __( 'How It Works', 'tales2tiles' ) ),
-		'pp_how'       => array(
-			'list',
-			__( 'Steps', 'tales2tiles' ),
-			array(
-				array( 'upload', __( 'Upload your pictures', 'tales2tiles' ), __( 'Pick your photos, then crop, edit and preview them before you add them to your cart.', 'tales2tiles' ) ),
-				array( 'cart', __( 'Place your order', 'tales2tiles' ), __( 'Check out with your delivery details and pay by GCash or BPI.', 'tales2tiles' ) ),
-				array( 'pin', __( 'Track your order', 'tales2tiles' ), __( 'We print, pack and ship your magnets. Follow your order online anytime.', 'tales2tiles' ) ),
-			),
-			array(
-				'columns' => array( array( 'select', __( 'Icon', 'tales2tiles' ), 'check', array( 'choices' => tales2tiles_icon_choices() ) ), array( 'text', __( 'Title', 'tales2tiles' ) ), array( 'text', __( 'Text', 'tales2tiles' ) ) ),
-				'add'     => __( 'Add step', 'tales2tiles' ),
-			),
-		),
-	);
-	foreach ( array(
-		1 => array( 'sparkle', __( 'Easy to upload', 'tales2tiles' ), array( __( 'Upload straight from your phone\'s camera roll or computer.', 'tales2tiles' ), __( 'Crop, add filters and text, and preview before you order.', 'tales2tiles' ), __( 'Works on phones, tablets and computers.', 'tales2tiles' ) ) ),
-		2 => array( 'heart', __( 'Made with love', 'tales2tiles' ), array( __( 'A small, family-run shop.', 'tales2tiles' ), __( 'Every order is printed and packed by hand.', 'tales2tiles' ), __( 'We check every magnet before it ships.', 'tales2tiles' ) ) ),
-	) as $n => list( $icon, $title, $points ) ) {
-		/* translators: %d: section number. */
-		$sections[ sprintf( __( 'Product pages: Photo section %d', 'tales2tiles' ), $n ) ] = array(
-			"pp_s{$n}_icon"   => array( 'select', __( 'Icon', 'tales2tiles' ), $icon, array( 'choices' => tales2tiles_icon_choices() ) ),
-			"pp_s{$n}_title"  => array( 'text', __( 'Heading', 'tales2tiles' ), $title ),
-			"pp_s{$n}_points" => array(
-				'list',
-				__( 'Points', 'tales2tiles' ),
-				array_map( static fn( $point ) => array( $point ), $points ),
-				array(
-					'columns' => array( array( 'text', __( 'Point', 'tales2tiles' ) ) ),
-					'add'     => __( 'Add point', 'tales2tiles' ),
-				),
-			),
-			"pp_s{$n}_img"    => array( 'image', __( 'Photo', 'tales2tiles' ), '', array( 'help' => __( 'Leave empty to use the home page hero photo.', 'tales2tiles' ) ) ),
-		);
-	}
 	$sections[ __( 'Product pages: Why choose us', 'tales2tiles' ) ] = array(
 		'pp_why_title' => array( 'text', __( 'Heading', 'tales2tiles' ), __( 'Why Choose Our Photo Magnets?', 'tales2tiles' ) ),
 		'pp_why'       => array(
@@ -116,7 +77,7 @@ function tales2tiles_order_fields() {
 				array( 'check', __( 'Easy to order', 'tales2tiles' ), __( 'Upload from your phone, crop, and check out in a few minutes.', 'tales2tiles' ) ),
 			),
 			array(
-				'columns' => array( array( 'select', __( 'Icon', 'tales2tiles' ), 'check', array( 'choices' => tales2tiles_icon_choices() ) ), array( 'text', __( 'Title', 'tales2tiles' ) ), array( 'text', __( 'Text', 'tales2tiles' ) ) ),
+				'columns' => array( array( 'icon', __( 'Icon', 'tales2tiles' ), 'check' ), array( 'text', __( 'Title', 'tales2tiles' ) ), array( 'text', __( 'Text', 'tales2tiles' ) ) ),
 				'add'     => __( 'Add reason', 'tales2tiles' ),
 			),
 		),
@@ -140,14 +101,12 @@ function tales2tiles_apply_order_fields( $config ) {
 	$f = static fn( $key ) => tales2tiles_field( 'order', $key );
 
 	$fee = $f( 'shippingFee' );
-	$qr  = (int) $f( 'gcash_qr' );
+	$qr  = static fn( $key ) => ( $id = (int) $f( $key ) ) ? (string) wp_get_attachment_url( $id ) : '';
 
-	$config['shop']['shippingFee']       = '' === $fee ? null : (float) $fee;
-	$config['shop']['gcash']['name']     = $f( 'gcash_name' );
-	$config['shop']['gcash']['number']   = $f( 'gcash_number' );
-	$config['shop']['gcash']['qr']       = $qr ? (string) wp_get_attachment_image_url( $qr, 'medium' ) : $config['shop']['gcash']['qr'];
-	$config['shop']['bpi']['name']       = $f( 'bpi_name' );
-	$config['shop']['bpi']['account']    = $f( 'bpi_account' );
+	$config['shop']['shippingFee'] = '' === $fee ? null : (float) $fee;
+	$config['shop']['gcash']['qr'] = $qr( 'gcash_qr' );
+	$config['shop']['bpi']['qr']   = $qr( 'bpi_qr' );
+	unset( $config['shop']['gcash']['name'], $config['shop']['gcash']['number'], $config['shop']['bpi']['name'], $config['shop']['bpi']['account'] );
 	$config['shop']['email']             = $f( 'email' );
 	$config['shop']['social']            = array(
 		'instagram' => $f( 'instagram' ),

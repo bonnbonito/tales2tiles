@@ -42,6 +42,10 @@ document.addEventListener( 'click', ( e ) => {
 		const box = button.closest( '.tt-gallery' );
 		box.querySelector( 'input' ).value = '';
 		box.querySelector( '.tt-gallery-thumbs' ).replaceChildren();
+	} else if ( button.matches( '.tt-icon' ) ) {
+		const picker = button.closest( '.tt-icons' );
+		picker.querySelector( 'input' ).value = button.dataset.icon;
+		picker.querySelectorAll( '.tt-icon' ).forEach( ( b ) => b.setAttribute( 'aria-pressed', String( b === button ) ) );
 	} else if ( button.matches( '.tt-add' ) ) {
 		const list = button.closest( '.tt-list' );
 		const rows = list.querySelector( '.tt-rows' );

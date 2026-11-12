@@ -152,6 +152,7 @@ function tales2tiles_product_fields() {
 	foreach ( tales2tiles_apply_order_fields( tales2tiles_config_defaults() )['groups'] as list( $group, $title ) ) { // Not tales2tiles_config(): that builds products from these fields.
 		$groups[ $group ] = $title;
 	}
+	$points = static fn( $lines ) => implode( "\n", $lines );
 	return array(
 		__( 'Details', 'tales2tiles' )             => array(
 			'blurb' => array( 'text', __( 'Short description', 'tales2tiles' ), '' ),
@@ -196,12 +197,31 @@ function tales2tiles_product_fields() {
 				),
 				array(
 					'columns' => array(
-						array( 'select', __( 'Icon', 'tales2tiles' ), 'check', array( 'choices' => tales2tiles_icon_choices() ) ),
+						array( 'icon', __( 'Icon', 'tales2tiles' ), 'check' ),
 						array( 'text', __( 'Title', 'tales2tiles' ) ),
 						array( 'text', __( 'Small text', 'tales2tiles' ) ),
 					),
 					'add'     => __( 'Add badge', 'tales2tiles' ),
 					'help'    => __( 'The row of badges under the Upload button.', 'tales2tiles' ),
+				),
+			),
+			'show_how'  => array( 'checkbox', __( 'Show How it works', 'tales2tiles' ), '', array( 'help' => __( 'The home page steps, under the product details. Hidden until this is checked.', 'tales2tiles' ) ) ),
+			'sections'  => array(
+				'list',
+				__( 'Photo sections', 'tales2tiles' ),
+				array(
+					array( __( 'Easy to upload', 'tales2tiles' ), 'sparkle', $points( array( __( 'Upload straight from your phone\'s camera roll or computer.', 'tales2tiles' ), __( 'Crop, add filters and text, and preview before you order.', 'tales2tiles' ), __( 'Works on phones, tablets and computers.', 'tales2tiles' ) ) ), '' ),
+					array( __( 'Made with love', 'tales2tiles' ), 'heart', $points( array( __( 'A small, family-run shop.', 'tales2tiles' ), __( 'Every order is printed and packed by hand.', 'tales2tiles' ), __( 'We check every magnet before it ships.', 'tales2tiles' ) ) ), '' ),
+				),
+				array(
+					'columns' => array(
+						array( 'text', __( 'Heading', 'tales2tiles' ) ),
+						array( 'icon', __( 'Icon', 'tales2tiles' ), 'sparkle' ),
+						array( 'textarea', __( 'Points, one per line', 'tales2tiles' ) ),
+						array( 'image', __( 'Photo', 'tales2tiles' ) ),
+					),
+					'add'     => __( 'Add section', 'tales2tiles' ),
+					'help'    => __( 'Under the product details, one block each. Leave the photo empty to use the home page hero photo. Remove a row to drop that block.', 'tales2tiles' ),
 				),
 			),
 		),

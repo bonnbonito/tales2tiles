@@ -395,14 +395,14 @@ function thumbBox(a, m) { return a >= 1 ? [m, Math.round(m / a)] : [Math.round(m
 /* ---------- shared wizard frame (one wizard per page: builder on /order/, checkout on /cart/) ---------- */
 const S = {
   step: 0,
-  d: (({ meetup: _m, ...r }) => ({ name: "", phone: "", email: "", address: "", city: "", province: "", postal: "", ...r, notes: ls("tt-note") || "" }))(savedDetails()), // notes: also typed in the slide-in cart
-  meetup: !!savedDetails().meetup, // Pick up instead of delivery; hides the shipping address.
+  d: (({ meetup: _m, ...r }) => ({ name: "", phone: "", email: "", address: "", city: "", province: "", postal: "", via: "facebook", user: "", ...r, notes: ls("tt-note") || "" }))(savedDetails()), // notes: also typed in the slide-in cart
+  meetup: !!savedDetails().meetup, // Meet up instead of delivery.
   remember: true, // "Remember my details": contact + address kept in this browser (localStorage tt-details) for next time.
-  receipt: null, payMethod: "GCash", payRef: "", upload: null, // upload: { token, sig } once checkout step 4 sent the photos to Drive.
+  receipt: null, payMethod: "", payRef: "", upload: null, // upload: { token, sig } once the payment step sent the photos to Drive.
   hq: true // Also send the untouched original files after the order (uploadOriginals).
 };
 let render = () => {};
-const STEP_LABEL = { options: "Quantity", preview: "Photos", cart: "Cart", details: "Details", pay: "Payment", receipt: "Receipt", review: "Review" };
+const STEP_LABEL = { options: "Quantity", preview: "Photos", cart: "Cart", details: "Details", pay: "Payment", review: "Review" };
 function stepperHTML(keys) {
   const s = S.step;
   return `<ol class="stepper">${keys.map((k, i) => `<li class="${i < s ? "done" : i === s ? "cur" : ""}"${i === s ? ' aria-current="step"' : ""}><span>${STEP_LABEL[k]}</span></li>`).join("")}</ol>
@@ -857,7 +857,7 @@ function stepAdjust(p, opts = {}) {
 }
 
 /* ---------- /cart/: cart and checkout ---------- */
-const CHECKOUT = ["cart", "details", "pay", "receipt", "review"];
+const CHECKOUT = ["cart", "details", "pay", "review"];
 function renderCheckout() {
   if (!CART.length && S.step === 0) {
     app.innerHTML = `<div class="wrap"><div class="empty-cart"><h1>Your cart is empty</h1><p>${cartOK ? "Pick a product to get started." : "Your browser is blocking the storage the cart needs (private browsing can do this). Please use a normal window."}</p><a class="btn" href="${esc(TT.urls.order)}">Browse products</a></div></div>`;
@@ -865,7 +865,7 @@ function renderCheckout() {
   }
   app.innerHTML = `<div class="wiz"><div class="wrap">${stepperHTML(CHECKOUT)}
     <div class="wiz-grid with-aside"><div class="panel" id="panel"></div><aside class="aside">${summaryHTML()}</aside></div></div></div>`;
-  ({ cart: stepCart, details: stepDetails, pay: stepPay, receipt: stepReceipt, review: stepReview })[CHECKOUT[S.step]]($("#panel"));
+  ({ cart: stepCart, details: stepDetails, pay: stepPay, review: stepReview })[CHECKOUT[S.step]]($("#panel"));
 }
 function summaryHTML() {
   const sh = shipping();
@@ -996,63 +996,81 @@ const FIELDS = [
   ["province", "Province", "text", "address-level1", "Enter your province.", v => v.trim().length >= 2],
   ["postal", "Postal code", "text", "postal-code", "Postal codes have 4 digits.", v => /^\d{4}$/.test(v.trim())]
 ];
+const VIAS = [["facebook", "Facebook"], ["ig", "IG"], ["viber", "Viber"]];
+const viaName = id => VIAS.find(([k]) => k === id)?.[1] || "";
+const viaLine = (via, user) => [viaName(via), (user || "").trim()].filter(Boolean).join(" · ");
 function stepDetails(p) {
   const f = ([k, l, t, ac, msg], cls = "") => `<div class="field ${cls}" data-f="${k}"><label for="f-${k}">${l}</label><input id="f-${k}" type="${t}" autocomplete="${ac}" value="${esc(S.d[k] || "")}" ${k === "postal" || k === "phone" ? 'inputmode="numeric"' : ""}><div class="msg">${msg}</div></div>`;
   const back = !!savedDetails().name;
-  p.innerHTML = `<h2>${back ? `Welcome back${S.d.name ? ", " + esc(S.d.name.split(" ")[0]) : ""}!` : "Where should we send it?"}</h2><p class="sub">${back ? "We filled in your details from last time. Just check they're still right." : "We'll email you when your order ships."}</p>
+  if (!VIAS.some(([k]) => k === S.d.via)) S.d.via = "facebook";
+  p.innerHTML = `<h2>${back ? `Welcome back${S.d.name ? ", " + esc(S.d.name.split(" ")[0]) : ""}!` : "How should we get this to you?"}</h2><p class="sub">${back ? "We filled in your details from last time. Just check they're still right." : "We'll email you when your order ships."}</p>
     <div class="form">
       <h3>Contact</h3>${f(FIELDS[0], "full")}${f(FIELDS[1])}${f(FIELDS[2])}
-      <label class="check full"><input type="checkbox" id="f-meetup"${S.meetup ? " checked" : ""}> <span>Meet up<small>I'll pick up the order — no shipping address needed.</small></span></label>
+      <div class="seg full" id="shipTabs" role="tablist" aria-label="Delivery">
+        <button type="button" role="tab" data-mode="ship" aria-pressed="${S.meetup ? "false" : "true"}">Ship</button>
+        <button type="button" role="tab" data-mode="meet" aria-pressed="${S.meetup ? "true" : "false"}">Meet up</button>
+      </div>
       <div id="shipBlock"${S.meetup ? " hidden" : ""}>
         <h3>Shipping address</h3>${f(FIELDS[3], "full")}${f(FIELDS[4])}${f(FIELDS[5])}${f(FIELDS[6])}
+      </div>
+      <div id="meetBlock"${S.meetup ? "" : " hidden"}>
+        <h3>How we'll reach you</h3>
+        <div class="field" data-f="via"><label for="f-via">Communicate via</label><select id="f-via">${VIAS.map(([k, l]) => `<option value="${k}"${S.d.via === k ? " selected" : ""}>${l}</option>`).join("")}</select><div class="msg">Choose Facebook, IG, or Viber.</div></div>
+        <div class="field" data-f="user"><label for="f-user">Username</label><input id="f-user" type="text" autocomplete="username" maxlength="40" value="${esc(S.d.user || "")}"><div class="msg">Enter your username.</div></div>
       </div>
       <div class="field full"><label for="f-notes">Notes for us (optional)</label><textarea id="f-notes" placeholder="Landmarks, gift message, meet-up place, anything we should know">${esc(S.d.notes)}</textarea></div>
       <label class="check remember full"><input type="checkbox" id="f-remember"${S.remember ? " checked" : ""}> <span>Remember my details for next time<small>Saved on this device only. Untick to forget them.</small></span></label>
     </div>${navHTML()}`;
-  const syncMeetup = () => { S.meetup = $("#f-meetup").checked; $("#shipBlock").hidden = S.meetup; };
-  $("#f-meetup").onchange = syncMeetup;
+  const setMode = meet => {
+    S.meetup = meet;
+    $("#shipBlock").hidden = meet;
+    $("#meetBlock").hidden = !meet;
+    $$("#shipTabs button").forEach(b => b.setAttribute("aria-pressed", String((b.dataset.mode === "meet") === meet)));
+    const aside = $(".aside"); if (aside) aside.innerHTML = summaryHTML();
+  };
+  $$("#shipTabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode === "meet"));
   $("#f-remember").onchange = e => { S.remember = e.target.checked; if (!S.remember) ls("tt-details", ""); };
   FIELDS.forEach(([k]) => $("#f-" + k)?.addEventListener("input", e => { S.d[k] = e.target.value; e.target.closest(".field").classList.remove("err"); }));
+  $("#f-via").onchange = e => { S.d.via = e.target.value; e.target.closest(".field").classList.remove("err"); };
+  $("#f-user").oninput = e => { S.d.user = e.target.value; e.target.closest(".field").classList.remove("err"); };
   $("#f-notes").oninput = e => { S.d.notes = e.target.value; ls("tt-note", e.target.value); };
   bindNav(() => {
     let first = null;
     const need = S.meetup ? FIELDS.slice(0, 3) : FIELDS;
     FIELDS.forEach(([k]) => $(`[data-f="${k}"]`)?.classList.remove("err"));
+    ["via", "user"].forEach(k => $(`[data-f="${k}"]`)?.classList.remove("err"));
     need.forEach(([k, , , , , ok]) => { const bad = !ok(S.d[k] || ""); $(`[data-f="${k}"]`).classList.toggle("err", bad); if (bad && !first) first = k; });
+    if (S.meetup) {
+      const viaBad = !VIAS.some(([k]) => k === S.d.via);
+      const userBad = (S.d.user || "").trim().length < 2;
+      $("[data-f=via]").classList.toggle("err", viaBad);
+      $("[data-f=user]").classList.toggle("err", userBad);
+      if (viaBad && !first) first = "via";
+      if (userBad && !first) first = "user";
+    }
     if (first) { $("#f-" + first).focus(); return "Check the highlighted fields."; }
-    ls("tt-details", S.remember ? JSON.stringify({ ...Object.fromEntries(FIELDS.map(([k]) => [k, S.d[k] || ""])), meetup: S.meetup }) : "");
+    ls("tt-details", S.remember ? JSON.stringify({ ...Object.fromEntries(FIELDS.map(([k]) => [k, S.d[k] || ""])), meetup: S.meetup, via: S.d.via || "", user: S.d.user || "" }) : "");
     return "";
   });
 }
 
 /* Step — pay */
+const payQR = (brand, cls, qr) => `<div class="pay"><div class="brand ${cls}">${brand}</div>${qr ? `<div class="qrimg"><img src="${esc(qr)}" alt="${esc(brand)} QR code"></div><a class="btn ghost sm" href="${esc(qr)}" download>Download QR</a>` : ""}</div>`;
 function stepPay(p) {
-  p.innerHTML = `<h2>Make your payment</h2><p class="sub">Send the exact amount to either account below.</p>
+  p.innerHTML = `<h2>Make your payment</h2><p class="sub">Send the exact amount, then upload your receipt.</p>
     <div class="amount"><span>${shipping() == null ? "Amount to pay now (items)" : "Total amount to pay"}</span><strong>${peso(cartTotal())}</strong></div>
     <div class="paygrid">
-      <div class="pay"><div class="brand gcash">GCash</div>
-        ${CONFIG.gcash.qr ? `<div class="qrimg"><img src="${esc(CONFIG.gcash.qr)}" alt="GCash QR code"></div>` : ""}
-        <dl><dt>Account name</dt><dd>${esc(CONFIG.gcash.name)}</dd><dt>GCash number</dt><dd>${esc(CONFIG.gcash.number)}</dd></dl>
-        <button class="btn ghost sm" data-copy="${esc(CONFIG.gcash.number.replace(/\s/g, ""))}">Copy number</button></div>
-      <div class="pay"><div class="brand bpi">BPI</div>
-        <dl><dt>Account name</dt><dd>${esc(CONFIG.bpi.name)}</dd><dt>Account number</dt><dd>${esc(CONFIG.bpi.account)}</dd></dl>
-        <button class="btn ghost sm" data-copy="${esc(CONFIG.bpi.account.replace(/\s/g, ""))}">Copy account no.</button></div>
+      ${payQR("GCash", "gcash", CONFIG.gcash.qr)}
+      ${payQR("BPI", "bpi", CONFIG.bpi.qr)}
     </div>
-    <div class="note">Take a screenshot of your receipt after paying. You'll upload it on the next step.${shipping() == null ? " We'll message you separately for the shipping fee." : ""}</div>
-    ${navHTML("I've paid")}`;
-  $$("[data-copy]").forEach(b => b.onclick = () => copy(b.dataset.copy));
-  bindNav();
-}
-
-/* Step — receipt */
-function stepReceipt(p) {
-  p.innerHTML = `<h2>Upload your receipt</h2><p class="sub">A screenshot from GCash or your bank app is fine.</p>
+    ${shipping() == null ? `<div class="note">We'll message you separately for the shipping fee.</div>` : ""}
+    <h3 class="receipt-h">Upload your receipt</h3>
+    <p class="sub">A screenshot from GCash or your bank app is fine.</p>
     <div class="receipt-row">
       <div>
         <label class="drop" id="rdrop"><input type="file" accept="image/*" class="sr" id="rfile">${ICON.cloud}<b>${S.receipt ? "Replace receipt" : "Tap to upload receipt"}</b><span>JPG or PNG, up to 10 MB</span></label>
         <div class="form" style="margin-top:18px">
-          <div class="field"><label for="pm">Paid with</label><select id="pm"><option${S.payMethod === "GCash" ? " selected" : ""}>GCash</option><option${S.payMethod === "BPI" ? " selected" : ""}>BPI</option></select></div>
-          <div class="field"><label for="ref">Reference no. (optional)</label><input id="ref" value="${esc(S.payRef)}" inputmode="numeric"></div>
+          <div class="field full"><label for="ref">Reference no. (optional)</label><input id="ref" value="${esc(S.payRef)}" inputmode="numeric"></div>
         </div>
       </div>
       <div class="receipt-prev" id="rprev">${S.receipt ? `<img src="${S.receipt}" alt="Your receipt">` : "Your receipt will show here"}</div>
@@ -1060,7 +1078,6 @@ function stepReceipt(p) {
     ${cartPhotos() ? `<label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-top:18px"><input type="checkbox" id="hqc"${S.hq ? " checked" : ""}> <span>Also send my original full-quality photos (recommended; uses more mobile data)</span></label>` : ""}
     ${navHTML()}`;
   $("#hqc")?.addEventListener("change", e => { S.hq = e.target.checked; });
-  $("#pm").onchange = e => S.payMethod = e.target.value;
   $("#ref").oninput = e => S.payRef = e.target.value;
   const take = async f => {
     if (!f) return; if (f.size > 10 * 1024 * 1024) return toast("That file is over 10 MB. Try a screenshot instead.");
@@ -1075,7 +1092,7 @@ function stepReceipt(p) {
   bindNav(() => S.receipt ? "" : "Upload your payment receipt to continue.", () => sendPhotos(p));
 }
 
-/* Checkout step 4 → Next: send the photos straight to Google Drive (inc/drive.php "direct uploads") with a progress card.
+/* Payment step → Next: send the photos straight to Google Drive (inc/drive.php "direct uploads") with a progress card.
    Each print file (photo-001.jpg …, same order as the server) and, if chosen, each photo's original goes to its own
    one-file Google upload link. S.upload = { token, sig } when done; Place order then sends only the order details.
    No Drive connected, or "Send with my order instead": S.upload stays null and Place order uploads through the website. */
@@ -1185,8 +1202,8 @@ function stepReview(p) {
       ${CART.map(it => `<p>${esc(itemName(it))} · ${itemLine(it)}${it.photos.length ? ` · ${it.photos.length} photo${it.photos.length > 1 ? "s" : ""}` : ""}</p>`).join("")}
       ${n && S.upload?.sig === uploadSig() ? `<p class="hint" style="margin-top:8px">✓ Photos sent${S.hq ? " with your full-quality originals" : ""}</p>` : n ? `<label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="hqc"${S.hq ? " checked" : ""}> <span>Also send my original full-quality photos (recommended; uses more mobile data)</span></label>` : ""}</div>
     <div class="review-sec"><h3>${S.meetup ? "Meet up" : "Deliver to"} <button class="linkbtn" data-to="1">Edit</button></h3>
-      <p><b style="color:var(--ink)">${esc(d.name)}</b> · ${esc(d.phone)}${d.email ? " · " + esc(d.email) : ""}${S.meetup ? "" : `<br>${esc(d.address)}, ${esc(d.city)}, ${esc(d.province)} ${esc(d.postal)}`}</p></div>
-    <div class="review-sec"><h3>Payment <button class="linkbtn" data-to="3">Edit</button></h3><p>${esc(S.payMethod)}${S.payRef ? " · Ref. " + esc(S.payRef) : ""} · receipt attached</p></div>
+      <p><b style="color:var(--ink)">${esc(d.name)}</b> · ${esc(d.phone)}${d.email ? " · " + esc(d.email) : ""}${S.meetup ? (viaLine(d.via, d.user) ? `<br>${esc(viaLine(d.via, d.user))}` : "") : `<br>${esc(d.address)}, ${esc(d.city)}, ${esc(d.province)} ${esc(d.postal)}`}</p></div>
+    <div class="review-sec"><h3>Payment <button class="linkbtn" data-to="2">Edit</button></h3><p>${S.payRef ? `Ref. ${esc(S.payRef)} · ` : ""}Receipt attached</p></div>
     ${navHTML("Submit order")}`;
   $("#hqc")?.addEventListener("change", e => { S.hq = e.target.checked; });
   $$("[data-to]").forEach(b => b.onclick = () => go(+b.dataset.to));
@@ -1245,8 +1262,8 @@ function renderDone(o, originals = []) {
       ${o.discount ? `<div class="srow discount"><span>Discount (${esc(o.coupon)})</span><span>−${peso(o.discount)}</span></div>` : ""}
       <div class="srow"><span>Shipping fee</span><span>${o.customer.meetup ? "Meet up" : o.shipping == null ? "We'll message you" : peso(o.shipping)}</span></div>
       <div class="srow stotal"><span>Paid</span><span>${peso(o.total)}</span></div>
-      <div class="srow"><span>Payment</span><span>${esc(o.payMethod)}${o.payRef ? " · Ref. " + esc(o.payRef) : ""}</span></div>
-      <div class="srow"><span>${o.customer.meetup ? "Meet up" : "Deliver to"}</span><span>${esc(o.customer.name)}${o.customer.meetup ? "" : `<small>${esc(o.customer.address)}, ${esc(o.customer.city)}, ${esc(o.customer.province)} ${esc(o.customer.postal)}</small>`}</span></div>
+      <div class="srow"><span>Payment</span><span>${esc([o.payMethod, o.payRef && "Ref. " + o.payRef].filter(Boolean).join(" · ") || "Receipt attached")}</span></div>
+      <div class="srow"><span>${o.customer.meetup ? "Meet up" : "Deliver to"}</span><span>${esc(o.customer.name)}${o.customer.meetup ? (viaLine(o.customer.via, o.customer.user) ? `<small>${esc(viaLine(o.customer.via, o.customer.user))}</small>` : "") : `<small>${esc(o.customer.address)}, ${esc(o.customer.city)}, ${esc(o.customer.province)} ${esc(o.customer.postal)}</small>`}</span></div>
     </div>
     <div class="btns"><a class="btn" href="${esc(TT.urls.track)}?order=${encodeURIComponent(o.id)}">Track my order</a><a class="btn ghost" href="${esc(TT.urls.home)}">Back to home</a></div>
   </div></div>`;
@@ -1328,7 +1345,7 @@ async function drawOrders() {
   const badge = s => `<span class="badge b-${s}">${STATUS_LABEL[s]}</span>`;
   const empty = all.length ? "No orders match this filter." : "No orders yet. New orders appear here as soon as they're submitted.";
   $("#rows").innerHTML = list.length ? list.map(o => `<tr data-id="${o.id}" tabindex="0"><td><b>${o.id}</b></td><td>${fmtDate(o.createdAt)}</td><td>${esc(o.customer.name)}<small>${esc(o.customer.phone)}</small></td><td>${esc(o.productName)}</td><td>${o.photos?.length || 0}</td><td>${peso(o.total)}</td><td>${esc(o.payMethod)}</td><td>${badge(o.status)}</td></tr>`).join("") : `<tr><td colspan="8"><div class="empty">${empty}</div></td></tr>`;
-  $("#cards").innerHTML = list.length ? list.map(o => `<button class="ocard" data-id="${o.id}"><div class="top"><b>${o.id}</b>${badge(o.status)}</div><p>${esc(o.customer.name)} · ${esc(o.productName)}</p><p>${fmtDate(o.createdAt)} · <b style="color:var(--ink)">${peso(o.total)}</b> via ${esc(o.payMethod)}</p></button>`).join("") : `<div class="empty">${empty}</div>`;
+  $("#cards").innerHTML = list.length ? list.map(o => `<button class="ocard" data-id="${o.id}"><div class="top"><b>${o.id}</b>${badge(o.status)}</div><p>${esc(o.customer.name)} · ${esc(o.productName)}</p><p>${fmtDate(o.createdAt)} · <b style="color:var(--ink)">${peso(o.total)}</b>${o.payMethod ? ` via ${esc(o.payMethod)}` : ""}</p></button>`).join("") : `<div class="empty">${empty}</div>`;
   $$("[data-id]").forEach(el => { el.onclick = () => openOrder(el.dataset.id); el.onkeydown = e => { if (e.key === "Enter") openOrder(el.dataset.id); }; });
 }
 function modal(html, wide) {
@@ -1368,12 +1385,12 @@ async function openOrder(id) {
   };
   const m = modal(`<div class="mhead"><div><h2>${o.id}</h2><span class="badge b-${o.status}" style="margin-top:6px">${STATUS_LABEL[o.status]}</span></div><button class="close" aria-label="Close">×</button></div>
     <div class="dgrid">
-      <div class="dbox"><h3>Customer</h3><p><b>${esc(c.name)}</b></p><p>${esc(c.phone)}${c.email ? "<br>" + esc(c.email) : ""}</p><p>${c.meetup ? "<b>Meet up</b>" : `${esc(c.address)}<br>${esc(c.city)}, ${esc(c.province)} ${esc(c.postal)}`}</p>${c.notes ? `<p style="color:var(--ink-2)">Note: ${esc(c.notes)}</p>` : ""}</div>
+      <div class="dbox"><h3>Customer</h3><p><b>${esc(c.name)}</b></p><p>${esc(c.phone)}${c.email ? "<br>" + esc(c.email) : ""}</p><p>${c.meetup ? `<b>Meet up</b>${viaLine(c.via, c.user) ? `<br>${esc(viaLine(c.via, c.user))}` : ""}` : `${esc(c.address)}<br>${esc(c.city)}, ${esc(c.province)} ${esc(c.postal)}`}</p>${c.notes ? `<p style="color:var(--ink-2)">Note: ${esc(c.notes)}</p>` : ""}</div>
       <div class="dbox"><h3>Order</h3>
         ${items.map(it => `<div class="srow"><span>${esc(it.name)} × ${it.qty}${(it.copies || 1) > 1 ? ` <b>× ${it.copies} copies</b>` : ""}${it.unit ? ` <small>@ ${peso(it.unit)}</small>` : ""}</span><span>${peso(it.subtotal)}</span></div>`).join("")}
         <div class="srow"><span>Subtotal</span><span>${peso(o.subtotal)}</span></div>${o.discount ? `<div class="srow"><span>Discount (${esc(o.coupon)})</span><span>−${peso(o.discount)}</span></div>` : ""}<div class="srow"><span>Shipping</span><span>${c.meetup ? "Meet up" : o.shipping == null ? "To quote by location" : peso(o.shipping)}</span></div>
         <div class="srow stotal"><span>Paid</span><span>${peso(o.total)}</span></div><p style="margin-top:8px;color:var(--ink-2);font-size:13.5px">Placed ${fmtDate(o.createdAt)}</p>${o.driveUrl ? `<p style="margin-top:6px"><a href="${esc(o.driveUrl)}" target="_blank" rel="noopener">Open photos in Google Drive</a></p>` : ""}</div>
-      <div class="dbox"><h3>Payment · ${esc(o.payMethod)}${o.payRef ? " · Ref. " + esc(o.payRef) : ""}</h3><img class="dreceipt" id="rc" src="${o.receipt}" alt="Payment receipt"></div>
+      <div class="dbox"><h3>Payment${o.payMethod ? ` · ${esc(o.payMethod)}` : ""}${o.payRef ? ` · Ref. ${esc(o.payRef)}` : ""}</h3><img class="dreceipt" id="rc" src="${o.receipt}" alt="Payment receipt"></div>
       ${o.photos.length ? `<p class="dwide" style="color:var(--ink-2);font-size:13.5px;margin:0">Photos as cropped by the customer. Full-quality originals: ${Object.keys(o.originals || {}).length} of ${o.photos.length}</p>` : ""}
       ${items.map(photosBox).join("")}
     </div>
