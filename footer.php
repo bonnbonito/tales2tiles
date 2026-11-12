@@ -29,7 +29,7 @@ $tales2tiles_home = home_url( '/' );
 			</div>
 		</div>
 		<div class="foot-bot">
-			<span>&copy; <?php echo esc_html( wp_date( 'Y' ) ); ?> <?php bloginfo( 'name' ); ?>. <?php esc_html_e( 'All rights reserved.', 'tales2tiles' ); ?> · <a href="<?php echo esc_url( current_user_can( 'manage_options' ) ? tales2tiles_page_url( 'shop-orders' ) : wp_login_url( tales2tiles_page_url( 'shop-orders' ) ) ); ?>" style="color:inherit"><?php esc_html_e( 'Shop owner', 'tales2tiles' ); ?></a></span>
+			<span>&copy; <?php echo esc_html( wp_date( 'Y' ) ); ?> <?php bloginfo( 'name' ); ?>. <?php esc_html_e( 'All rights reserved.', 'tales2tiles' ); ?></span>
 			<span class="script"><?php esc_html_e( 'Made with love', 'tales2tiles' ); ?> <?php echo tales2tiles_icon( 'smallHeart' ); // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG. ?></span>
 		</div>
 	</div>

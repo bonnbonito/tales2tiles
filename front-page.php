@@ -47,9 +47,28 @@ get_header();
 				<h2><?php echo esc_html( tales2tiles_home( 'products_title' ) ); ?></h2>
 				<p><?php echo esc_html( tales2tiles_home( 'products_sub' ) ); ?></p>
 			</div>
-			<div class="pgroups">
+			<?php
+			$tales2tiles_counts = array();
+			foreach ( $tales2tiles_config['products'] as $tales2tiles_product ) {
+				$tales2tiles_counts[ $tales2tiles_product['group'] ] = ( $tales2tiles_counts[ $tales2tiles_product['group'] ] ?? 0 ) + 1;
+			}
+			$tales2tiles_top = 0;
+			foreach ( $tales2tiles_config['groups'] as $tales2tiles_g ) {
+				if ( 'keepsakes' !== $tales2tiles_g[0] ) {
+					$tales2tiles_top += $tales2tiles_counts[ $tales2tiles_g[0] ] ?? 0;
+				}
+			}
+			$tales2tiles_fit3 = 3 === $tales2tiles_top; // Three cards up top: same 1/3 width as the Keepsakes row.
+			?>
+			<div class="pgroups<?php echo $tales2tiles_fit3 ? ' fit3' : ''; ?>">
 				<?php foreach ( $tales2tiles_config['groups'] as list( $tales2tiles_group, $tales2tiles_title, $tales2tiles_sub ) ) : ?>
-					<div class="pgroup<?php echo 'keepsakes' === $tales2tiles_group ? ' wide' : ''; ?>">
+					<?php
+					$tales2tiles_n = $tales2tiles_counts[ $tales2tiles_group ] ?? 0;
+					if ( $tales2tiles_fit3 && 'keepsakes' !== $tales2tiles_group && ! $tales2tiles_n ) {
+						continue;
+					}
+					?>
+					<div class="pgroup<?php echo 'keepsakes' === $tales2tiles_group ? ' wide' : ''; ?>"<?php echo ( $tales2tiles_fit3 && 'keepsakes' !== $tales2tiles_group ) ? ' style="--n:' . (int) $tales2tiles_n . '"' : ''; ?>>
 						<div class="pgroup-head">
 							<h3><?php echo esc_html( $tales2tiles_title ); ?></h3>
 							<span><?php echo esc_html( $tales2tiles_sub ); ?></span>
